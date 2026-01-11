@@ -83,8 +83,8 @@ class LogEvent(BaseModel):
     error_code: Optional[str] = Field(default=None, description="Vendor-specific error code, e.g., 'ERR_VACUUM_LOW'")
     message: str = Field(..., min_length=1, description="Human-readable log message")
     level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(..., description="Log severity level")
-    context_data: Dict[str, str] = Field(
-        default_factory=dict, description="Contextual data, e.g., {'speed': '100', 'tip_pos': 'A1'}"
+    context_data: Dict[str, str | int | float | bool] = Field(
+        default_factory=dict, description="Contextual data, e.g., {'speed': 100, 'tip_pos': 'A1'}"
     )
 
 
