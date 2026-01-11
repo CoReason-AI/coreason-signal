@@ -10,7 +10,7 @@
 
 from typing import Dict, List, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class DeviceDefinition(BaseModel):
@@ -34,6 +34,27 @@ class DeviceDefinition(BaseModel):
         ..., description="List of allowed autonomous actions, e.g., ['RETRY', 'PAUSE', 'ABORT']"
     )
 
+    @field_validator("endpoint")
+    @classmethod
+    def validate_endpoint(cls, v: str) -> str:
+        if not (v.startswith("http://") or v.startswith("https://")):
+            raise ValueError("Endpoint must start with 'http://' or 'https://'")
+        return v
+
+    @field_validator("edge_agent_model")
+    @classmethod
+    def validate_model_extension(cls, v: str) -> str:
+        if not v.endswith(".onnx"):
+            raise ValueError("Edge agent model must be an .onnx file")
+        return v
+
+    @field_validator("capabilities", "allowed_reflexes")
+    @classmethod
+    def validate_unique_list(cls, v: List[str]) -> List[str]:
+        if len(v) != len(set(v)):
+            raise ValueError("List must contain unique items")
+        return v
+
 
 class SoftSensorModel(BaseModel):
     """
@@ -47,3 +68,12 @@ class SoftSensorModel(BaseModel):
         ..., description="Physics-based constraints for the model, e.g., {'min_titer': '0.0'}"
     )
     model_artifact: bytes = Field(..., description="The serialized ONNX model artifact")
+
+    @field_validator("input_sensors")
+    @classmethod
+    def validate_input_sensors(cls, v: List[str]) -> List[str]:
+        if not v:
+            raise ValueError("Input sensors list cannot be empty")
+        if len(v) != len(set(v)):
+            raise ValueError("Input sensors must be unique")
+        return v

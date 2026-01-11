@@ -50,6 +50,58 @@ class TestDeviceDefinition:
         with pytest.raises(ValidationError):
             DeviceDefinition(id="IncompleteDevice")  # type: ignore
 
+    def test_invalid_endpoint_url(self) -> None:
+        """Test that endpoint without http/https raises ValidationError."""
+        with pytest.raises(ValidationError) as excinfo:
+            DeviceDefinition(
+                id="LiquidHandler-01",
+                driver_type="SiLA2",
+                endpoint="ftp://192.168.1.1",
+                capabilities=[],
+                edge_agent_model="model.onnx",
+                allowed_reflexes=[],
+            )
+        assert "Endpoint must start with 'http://' or 'https://'" in str(excinfo.value)
+
+    def test_invalid_model_extension(self) -> None:
+        """Test that edge_agent_model without .onnx extension raises ValidationError."""
+        with pytest.raises(ValidationError) as excinfo:
+            DeviceDefinition(
+                id="LiquidHandler-01",
+                driver_type="SiLA2",
+                endpoint="https://localhost",
+                capabilities=[],
+                edge_agent_model="model.pt",
+                allowed_reflexes=[],
+            )
+        assert "Edge agent model must be an .onnx file" in str(excinfo.value)
+
+    def test_duplicate_capabilities(self) -> None:
+        """Test that duplicate capabilities raise ValidationError."""
+        with pytest.raises(ValidationError) as excinfo:
+            DeviceDefinition(
+                id="LiquidHandler-01",
+                driver_type="SiLA2",
+                endpoint="https://localhost",
+                capabilities=["Wash", "Wash"],
+                edge_agent_model="model.onnx",
+                allowed_reflexes=[],
+            )
+        assert "List must contain unique items" in str(excinfo.value)
+
+    def test_duplicate_reflexes(self) -> None:
+        """Test that duplicate allowed_reflexes raise ValidationError."""
+        with pytest.raises(ValidationError) as excinfo:
+            DeviceDefinition(
+                id="LiquidHandler-01",
+                driver_type="SiLA2",
+                endpoint="https://localhost",
+                capabilities=[],
+                edge_agent_model="model.onnx",
+                allowed_reflexes=["RETRY", "RETRY"],
+            )
+        assert "List must contain unique items" in str(excinfo.value)
+
 
 class TestSoftSensorModel:
     def test_valid_instantiation(self) -> None:
@@ -77,3 +129,27 @@ class TestSoftSensorModel:
                 physics_constraints={},
                 model_artifact=b"",
             )
+
+    def test_empty_input_sensors(self) -> None:
+        """Test that empty input_sensors raises ValidationError."""
+        with pytest.raises(ValidationError) as excinfo:
+            SoftSensorModel(
+                id="model_empty",
+                input_sensors=[],
+                target_variable="titer",
+                physics_constraints={},
+                model_artifact=b"123",
+            )
+        assert "Input sensors list cannot be empty" in str(excinfo.value)
+
+    def test_duplicate_input_sensors(self) -> None:
+        """Test that duplicate input_sensors raise ValidationError."""
+        with pytest.raises(ValidationError) as excinfo:
+            SoftSensorModel(
+                id="model_dup",
+                input_sensors=["temp", "temp"],
+                target_variable="titer",
+                physics_constraints={},
+                model_artifact=b"123",
+            )
+        assert "Input sensors must be unique" in str(excinfo.value)
