@@ -8,7 +8,8 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_signal
 
-from typing import Dict, List, Literal
+from datetime import datetime, timezone
+from typing import Dict, List, Literal, Optional
 
 from pydantic import AnyUrl, BaseModel, ConfigDict, Field
 
@@ -48,3 +49,61 @@ class SoftSensorModel(BaseModel):
         ..., description="Physics constraints for the model, e.g., {'min_titer': '0.0'}"
     )
     model_artifact: bytes = Field(..., min_length=1, description="The binary content of the ONNX model artifact")
+
+
+class SOPDocument(BaseModel):
+    """
+    Schema for a Standard Operating Procedure (SOP) used in the Edge Agent's RAG system.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(..., min_length=1, description="Unique SOP identifier, e.g., 'SOP-104'")
+    title: str = Field(..., min_length=1, description="Title of the SOP")
+    content: str = Field(..., min_length=1, description="Full text content of the SOP")
+    metadata: Dict[str, str] = Field(
+        default_factory=dict, description="Additional metadata keys, e.g., {'category': 'maintenance'}"
+    )
+    embedding: Optional[List[float]] = Field(
+        default=None, description="Pre-computed vector embedding of the content (optional)"
+    )
+
+
+class LogEvent(BaseModel):
+    """
+    Schema for an incoming log or telemetry event from a device.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), description="UTC timestamp of the event"
+    )
+    source_device_id: str = Field(..., min_length=1, description="ID of the device generating the log")
+    error_code: Optional[str] = Field(default=None, description="Vendor-specific error code, e.g., 'ERR_VACUUM_LOW'")
+    message: str = Field(..., min_length=1, description="Human-readable log message")
+    level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = Field(..., description="Log severity level")
+    context_data: Dict[str, str | int | float | bool] = Field(
+        default_factory=dict, description="Contextual data, e.g., {'speed': 100, 'tip_pos': 'A1'}"
+    )
+
+
+class AgentReflex(BaseModel):
+    """
+    Schema for the decision or action taken by the Edge Agent.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(..., min_length=1, description="Unique ID for this reflex action event")
+    timestamp: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc), description="UTC timestamp of the decision"
+    )
+    related_log_id: Optional[str] = Field(default=None, description="ID of the log event that triggered this reflex")
+    action_type: Literal["RETRY", "PAUSE", "ABORT", "NOTIFY", "IGNORE"] = Field(
+        ..., description="The type of action taken"
+    )
+    reasoning: str = Field(..., min_length=1, description="Explanation for the decision (from LLM or RAG)")
+    parameters: Dict[str, float | str | int] = Field(
+        default_factory=dict, description="Parameters for the action, e.g., {'speed_factor': 0.5}"
+    )
