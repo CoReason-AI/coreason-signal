@@ -11,7 +11,6 @@ packages = [{include = "coreason_signal", from = "src"}]
 python = ">=3.12, <3.15"
 loguru = "^0.7.2"
 pydantic = "^2.12.5"
-sila2 = "^0.14.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
@@ -59,6 +58,7 @@ ignore = []
 python_version = "3.12"
 strict = true
 ignore_missing_imports = true
+plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 addopts = "--cov=src --cov-report=term-missing --cov-fail-under=100"
