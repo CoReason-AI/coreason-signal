@@ -15,6 +15,9 @@ from loguru import logger as _logger
 
 __all__ = ["logger", "setup_logger"]
 
+# Re-export logger
+logger = _logger
+
 
 def setup_logger() -> None:
     """Configures the application logger."""
