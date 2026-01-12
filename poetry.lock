@@ -410,7 +410,6 @@ mmh3 = ">=4.1.0,<6.0.0"
 numpy = [
     {version = ">=1.26", markers = "python_version == \"3.12\""},
     {version = ">=2.1.0", markers = "python_version == \"3.13\""},
-    {version = ">=2.3.0", markers = "python_version >= \"3.14\""},
 ]
 onnxruntime = [
     {version = ">=1.17.0,<1.20.0 || >1.20.0", markers = "python_version >= \"3.10\" and python_version < \"3.13\""},
@@ -2506,5 +2505,5 @@ dev = ["black (>=19.3b0) ; python_version >= \"3.6\"", "pytest (>=4.6.2)"]
 
 [metadata]
 lock-version = "2.1"
-python-versions = ">=3.12, <3.15"
-content-hash = "2a026139bfd515fc2884feb10bc2286603a0b20db7140a7d006682fa011e31c3"
+python-versions = ">=3.12, <3.14"
+content-hash = "a861705423bdb65e9e05537c4db3af623bad06a5fcd6355bbe070de7105bf301"
