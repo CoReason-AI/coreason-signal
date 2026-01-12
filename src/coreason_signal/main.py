@@ -8,9 +8,10 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_signal
 
-from coreason_signal.utils.logger import logger
+from coreason_signal.utils.logger import logger, setup_logger
 
 
 def hello_world() -> str:
+    setup_logger()
     logger.info("Hello World!")
     return "Hello World!"
