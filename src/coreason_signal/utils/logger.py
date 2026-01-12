@@ -11,7 +11,7 @@
 import sys
 from pathlib import Path
 
-from loguru import logger
+from loguru import logger as _logger
 
 __all__ = ["logger", "setup_logger"]
 
