@@ -8,9 +8,10 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_signal
 
-from typing import Dict, List
+import base64
+from typing import Any, Dict, List
 
-from pydantic import BaseModel, HttpUrl, field_validator
+from pydantic import BaseModel, HttpUrl, field_serializer, field_validator
 
 
 class DeviceDefinition(BaseModel):
@@ -70,3 +71,21 @@ class SoftSensorModel(BaseModel):
             except ValueError as e:
                 raise ValueError(f"Constraint value for '{key}' must be numeric, got '{value}'") from e
         return v
+
+    @field_serializer("model_artifact")
+    def serialize_model_artifact(self, model_artifact: bytes, _info: Any) -> str:
+        """Serializes the bytes artifact to a base64 string for JSON compatibility."""
+        return base64.b64encode(model_artifact).decode("utf-8")
+
+    @field_validator("model_artifact", mode="before")
+    @classmethod
+    def validate_model_artifact(cls, v: Any) -> bytes:
+        """Decodes the base64 string back to bytes if the input is a string."""
+        if isinstance(v, str):
+            try:
+                return base64.b64decode(v)
+            except Exception as e:
+                raise ValueError("Invalid base64 encoded string for model_artifact") from e
+        if isinstance(v, bytes):
+            return v
+        raise ValueError("model_artifact must be bytes or a base64 encoded string")
