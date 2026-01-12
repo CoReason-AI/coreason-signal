@@ -1,6 +1,7 @@
 import pytest
-from coreason_signal.schemas import DeviceDefinition, SoftSensorModel
 from pydantic import ValidationError
+
+from coreason_signal.schemas import DeviceDefinition, SoftSensorModel
 
 
 def test_device_definition_valid() -> None:

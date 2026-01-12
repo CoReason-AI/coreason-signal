@@ -39,7 +39,5 @@ class SoftSensorModel(BaseModel):
             try:
                 float(value)
             except ValueError:
-                raise ValueError(
-                    f"Constraint value for '{key}' must be a numeric string, got '{value}'"
-                ) from None
+                raise ValueError(f"Constraint value for '{key}' must be a numeric string, got '{value}'") from None
         return v
