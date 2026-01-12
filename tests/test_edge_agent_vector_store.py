@@ -105,3 +105,39 @@ def test_add_empty_list(test_db_path: str, mock_embedding_model: MagicMock) -> N
     except ValueError:
         exists = False
     assert not exists
+
+
+def test_persistence(test_db_path: str, mock_embedding_model: MagicMock) -> None:
+    """Test that data persists across store instances sharing the same path."""
+    store1 = LocalVectorStore(db_path=test_db_path)
+    sops = [SOPDocument(id="P1", title="Persistent", content="Data", metadata={})]
+    store1.add_sops(sops)
+
+    # Re-open in a new instance
+    store2 = LocalVectorStore(db_path=test_db_path)
+    results = store2.query("Data", k=1)
+    assert len(results) == 1
+    assert results[0].id == "P1"
+
+
+def test_query_limit_exceeds_count(test_db_path: str, mock_embedding_model: MagicMock) -> None:
+    """Test querying with k larger than the number of documents."""
+    store = LocalVectorStore(db_path=test_db_path)
+    sops = [SOPDocument(id="1", title="One", content="One", metadata={})]
+    store.add_sops(sops)
+
+    results = store.query("One", k=10)
+    assert len(results) == 1
+    assert results[0].id == "1"
+
+
+def test_add_sops_special_characters(test_db_path: str, mock_embedding_model: MagicMock) -> None:
+    """Test adding SOPs with special characters."""
+    store = LocalVectorStore(db_path=test_db_path)
+    content_with_special = "Special chars: ñ, ü, é, 🚀, €, 100%"
+    sops = [SOPDocument(id="SPEC-1", title="Special", content=content_with_special, metadata={})]
+    store.add_sops(sops)
+
+    results = store.query("Special", k=1)
+    assert len(results) == 1
+    assert results[0].content == content_with_special
