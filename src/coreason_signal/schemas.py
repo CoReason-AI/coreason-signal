@@ -1,12 +1,5 @@
-# Copyright (c) 2025 CoReason, Inc.
-#
-# This software is proprietary and dual-licensed.
-# Licensed under the Prosperity Public License 3.0 (the "License").
-# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
-# For details, see the LICENSE file.
-# Commercial use beyond a 30-day trial requires a separate license.
-#
-# Source Code: https://github.com/CoReason-AI/coreason_signal
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from typing import Any, Dict, List, Literal, Optional
 
@@ -15,29 +8,71 @@ from pydantic import AnyUrl, BaseModel, ConfigDict, Field
 
 class DeviceDefinition(BaseModel):
     """
-    Schema for mapping a physical instrument to the system.
+    Hardware abstraction layer mapping for SiLA 2 and legacy instruments.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    id: str  # e.g., "LiquidHandler-01"
+    driver_type: str  # e.g., "SiLA2", "SerialWrapper", "VisionWrapper"
+    endpoint: HttpUrl  # e.g., "https://192.168.1.50:50052"
+    capabilities: List[str]  # e.g., ["Transfer", "Wash", "Heater"]
 
-    id: str = Field(..., min_length=1, description="Unique identifier for the device, e.g., 'LiquidHandler-01'")
-    driver_type: Literal["SiLA2", "SerialWrapper", "VisionWrapper"] = Field(..., description="Type of driver to use.")
-    endpoint: AnyUrl = Field(..., description="Network endpoint, e.g., 'https://192.168.1.50:50052'")
-    capabilities: List[str] = Field(
-        ..., min_length=1, description="List of capabilities, e.g., ['Transfer', 'Wash', 'Heater']"
-    )
-    edge_agent_model: str = Field(
-        ..., min_length=1, description="Path or name of the Edge AI model, e.g., 'phi-4-quantized.onnx'"
-    )
-    allowed_reflexes: List[str] = Field(..., description="List of allowed reflexes, e.g., ['RETRY', 'PAUSE', 'ABORT']")
+    # Edge AI Config
+    edge_agent_model: str  # e.g., "phi-4-quantized.onnx"
+    allowed_reflexes: List[str]  # e.g., ["RETRY", "PAUSE", "ABORT"]
 
 
 class SoftSensorModel(BaseModel):
     """
-    Schema for Soft Sensor models that infer unmeasurable biological states.
+    Configuration for physics-informed neural networks (PINNs) acting as virtual sensors.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    id: str  # e.g., "model_titer_pred_v2"
+    input_sensors: List[str]  # e.g., ["ph", "do2", "agitation"]
+    target_variable: str  # e.g., "titer_g_L"
+    physics_constraints: Dict[str, str]  # e.g., {"min_titer": "0.0"}
+    model_artifact: bytes  # The ONNX file
+
+    @field_validator("physics_constraints")
+    @classmethod
+    def validate_constraint_values(cls, v: Dict[str, str]) -> Dict[str, str]:
+        """
+        Ensures that all values in physics_constraints are parsable as numbers (float).
+        """
+        for key, value in v.items():
+            try:
+                float(value)
+            except ValueError:
+                raise ValueError(f"Constraint value for '{key}' must be a numeric string, got '{value}'") from None
+        return v
+
+
+class SOPDocument(BaseModel):
+    """
+    Standard Operating Procedure (SOP) document for the Edge Agent's RAG system.
+    """
+
+    id: str  # e.g., "SOP-104"
+    title: str  # e.g., "Vacuum Pressure Low Recovery"
+    content: str  # e.g., "For vacuum errors, retry aspiration once at 50% speed."
+    metadata: Dict[str, str] = {}  # e.g., {"error_code": "ERR_VACUUM_PRESSURE_LOW"}
+
+
+class LogEvent(BaseModel):
+    """
+    Structured log event from an instrument.
+    """
+
+    timestamp: datetime
+    source: str
+    level: str  # e.g., "INFO", "ERROR"
+    raw_message: str
+    metadata: Dict[str, Any] = {}
+
+
+class AgentReflex(BaseModel):
+    """
+    The decision/action output by the Edge Agent.
+    """
 
     id: str = Field(..., min_length=1, description="Unique identifier for the model, e.g., 'model_titer_pred_v2'")
     input_sensors: List[str] = Field(
