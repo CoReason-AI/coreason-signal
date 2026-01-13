@@ -8,7 +8,7 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_signal
 
-from typing import Dict, List, Literal
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import AnyUrl, BaseModel, ConfigDict, Field
 
@@ -48,3 +48,46 @@ class SoftSensorModel(BaseModel):
         ..., description="Physics constraints for the model, e.g., {'min_titer': '0.0'}"
     )
     model_artifact: bytes = Field(..., min_length=1, description="The binary content of the ONNX model artifact")
+
+
+class AgentReflex(BaseModel):
+    """
+    Schema for an autonomous action taken by the Edge Agent.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    action_name: str = Field(..., min_length=1, description="Name of the action, e.g., 'Aspirate'")
+    parameters: Dict[str, Any] = Field(
+        default_factory=dict, description="Parameters for the action, e.g., {'speed': 0.5}"
+    )
+    reasoning: str = Field(..., description="Explanation for why this reflex was triggered.")
+
+
+class SOPDocument(BaseModel):
+    """
+    Schema for a Standard Operating Procedure (SOP) document used for RAG.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    id: str = Field(..., min_length=1, description="Unique identifier for the SOP, e.g., 'SOP-104'")
+    title: str = Field(..., min_length=1, description="Title of the SOP")
+    content: str = Field(..., min_length=1, description="Text content to be embedded for retrieval.")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata.")
+    associated_reflex: Optional[AgentReflex] = Field(
+        None, description="The reflex action prescribed by this SOP, if any."
+    )
+
+
+class LogEvent(BaseModel):
+    """
+    Schema for a log event that triggers the Edge Agent.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(..., min_length=1, description="Unique Event ID")
+    timestamp: str = Field(..., description="ISO 8601 Timestamp")
+    message: str = Field(..., description="The semantic log message, e.g., 'Vacuum Pressure Low'")
+    raw_code: Optional[str] = Field(None, description="Original error code, e.g., 'ERR_0x4F'")
