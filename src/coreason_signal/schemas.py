@@ -1,4 +1,5 @@
-from typing import Dict, List
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, HttpUrl, field_validator
 
@@ -52,3 +53,27 @@ class SOPDocument(BaseModel):
     title: str  # e.g., "Vacuum Pressure Low Recovery"
     content: str  # e.g., "For vacuum errors, retry aspiration once at 50% speed."
     metadata: Dict[str, str] = {}  # e.g., {"error_code": "ERR_VACUUM_PRESSURE_LOW"}
+
+
+class LogEvent(BaseModel):
+    """
+    Structured log event from an instrument.
+    """
+
+    timestamp: datetime
+    source: str
+    level: str  # e.g., "INFO", "ERROR"
+    raw_message: str
+    metadata: Dict[str, Any] = {}
+
+
+class AgentReflex(BaseModel):
+    """
+    The decision/action output by the Edge Agent.
+    """
+
+    reflex_id: str
+    action: str  # e.g., "RETRY", "PAUSE", "ABORT"
+    parameters: Dict[str, Any] = {}
+    reasoning: str
+    sop_id: Optional[str] = None
