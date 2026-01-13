@@ -1,80 +1,142 @@
-import uuid
-from typing import Any, Dict, Optional
+# Copyright (c) 2025 CoReason, Inc.
+#
+# This software is proprietary and dual-licensed.
+# Licensed under the Prosperity Public License 3.0 (the "License").
+# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
+# For details, see the LICENSE file.
+# Commercial use beyond a 30-day trial requires a separate license.
+#
+# Source Code: https://github.com/CoReason-AI/coreason_signal
 
-from coreason_signal.edge_agent.vector_store import LocalVectorStore
-from coreason_signal.schemas import AgentReflex, LogEvent
+from typing import List, Optional
+
+import lancedb
+from fastembed import TextEmbedding
+from lancedb.table import Table
+
+from coreason_signal.schemas import AgentReflex, SOPDocument
 from coreason_signal.utils.logger import logger
 
 
 class ReflexEngine:
     """
-    Core decision engine for the Edge Agent.
-    Evaluates log events and determines reflex actions using a local vector store (RAG).
+    The Edge Agent's "Reflex Arc".
+    Handles RAG-based decision making by querying local SOPs.
     """
 
-    def __init__(self, vector_store: LocalVectorStore) -> None:
+    TABLE_NAME = "sops"
+
+    def __init__(self, persistence_path: str = "./data/lancedb"):
         """
-        Initialize the ReflexEngine.
+        Initialize the Reflex Engine with a local vector store.
 
         Args:
-            vector_store: Instance of LocalVectorStore for retrieving SOPs.
+            persistence_path: Path to the LanceDB directory.
         """
-        self._vector_store = vector_store
+        self.persistence_path = persistence_path
+        self._db = lancedb.connect(self.persistence_path)
 
-    def decide(self, event: LogEvent) -> Optional[AgentReflex]:
+        # Initialize embedding model (default BAAI/bge-small-en-v1.5)
+        # fastembed downloads the model automatically on first use.
+        self._embedding_model = TextEmbedding()
+
+        self._table: Optional[Table] = None
+        self._init_table()
+
+    def _get_table_names(self) -> List[str]:
+        """Helper to get list of table names robustly."""
+        tables_response = self._db.list_tables()
+        if isinstance(tables_response, list):
+            return tables_response
+        elif hasattr(tables_response, "tables"):
+            return tables_response.tables  # type: ignore
+        else:
+            return list(tables_response)
+
+    def _init_table(self) -> None:
+        """Initialize or load the SOP table."""
+        try:
+            tables = self._get_table_names()
+            logger.debug(f"Existing tables: {tables}")
+
+            if self.TABLE_NAME in tables:
+                self._table = self._db.open_table(self.TABLE_NAME)
+                logger.info(f"Loaded existing table: {self.TABLE_NAME}")
+            else:
+                pass  # Lazy creation
+        except Exception as e:
+            logger.error(f"Failed to initialize table: {e}")
+            raise
+
+    def ingest_sops(self, sops: List[SOPDocument]) -> None:
         """
-        Evaluate a log event and decide on an action.
+        Embed and store Standard Operating Procedures.
 
         Args:
-            event: The LogEvent to analyze.
+            sops: List of SOPDocument objects to ingest.
+        """
+        if not sops:
+            return
+
+        logger.info(f"Ingesting {len(sops)} SOPs...")
+
+        texts = [sop.content for sop in sops]
+        embeddings = list(self._embedding_model.embed(texts))
+
+        data = []
+        for sop, vector in zip(sops, embeddings, strict=False):
+            item = sop.model_dump()
+            item["vector"] = vector.tolist()
+            data.append(item)
+
+        # Refresh table list
+        tables = self._get_table_names()
+        if self.TABLE_NAME in tables:
+            self._table = self._db.open_table(self.TABLE_NAME)
+            self._table.add(data)
+        else:
+            self._table = self._db.create_table(self.TABLE_NAME, data=data)
+
+        logger.info("Ingestion complete.")
+
+    def decide(self, context: str) -> Optional[AgentReflex]:
+        """
+        Query the SOPs based on the context (e.g., error message) and return a reflex action.
+
+        Args:
+            context: The semantic error message or context string.
 
         Returns:
-            An AgentReflex object if an action is determined, else None.
+            The AgentReflex from the most relevant SOP, or None if no relevant SOP is found.
         """
-        # Only act on errors
-        if event.level != "ERROR":
-            logger.debug(f"Ignoring non-error event: {event.level}")
+        if self._table is None:
+            tables = self._get_table_names()
+            if self.TABLE_NAME in tables:
+                self._table = self._db.open_table(self.TABLE_NAME)
+            else:
+                logger.warning("SOP table not found. Cannot make a decision.")
+                return None
+
+        # Embed the query
+        query_embedding = list(self._embedding_model.embed([context]))[0]
+
+        # Search
+        # We assume a limit of 1 for the single best reflex
+        results = self._table.search(query_embedding).metric("cosine").limit(1).to_pydantic(SOPDocument)
+
+        if not results:
+            logger.info(f"No relevant SOP found for context: '{context}'")
             return None
 
-        if not event.raw_message.strip():
-            logger.warning("Event has empty message, skipping.")
-            return None
+        best_sop = results[0]
+        # In a real system, we would check a similarity score threshold here.
+        # fastembed + lancedb usually returns L2 distance or cosine distance.
+        # For this atomic unit, we assume the top result is good enough if it exists.
 
-        logger.info(f"Analyzing error: {event.raw_message}")
+        logger.info(f"Matched SOP: {best_sop.id} ({best_sop.title})")
 
-        # Query SOPs
-        try:
-            # Note: In a real implementation, we might parse the error code specifically.
-            # Here we use the raw message for semantic search.
-            sops = self._vector_store.query(event.raw_message, k=1)
-        except Exception as e:
-            logger.exception(f"Vector store query failed: {e}")
-            return None
+        if best_sop.associated_reflex:
+            return best_sop.associated_reflex  # type: ignore[no-any-return]
 
-        if not sops:
-            logger.warning("No relevant SOP found for error.")
-            return None
-
-        best_sop = sops[0]
-        logger.info(f"Found SOP: {best_sop.id} ({best_sop.title})")
-
-        # Deterministic Logic:
-        # Extract action from metadata if available, otherwise default to NOTIFY
-        action = best_sop.metadata.get("suggested_action", "NOTIFY")
-
-        # Parse parameters (simplified: assuming they are stored as a stringified dict or similar in metadata,
-        # or just hardcoded for this atomic unit).
-        # For this iteration, we will look for 'action_params' in metadata, which might be a JSON string,
-        # but to keep it simple and type-safe without extra parsing logic yet, we'll use an empty dict
-        # unless 'action_params' is explicitly provided as a dict in the mock data.
-        # Since metadata is Dict[str, str], we can't store a Dict directly.
-        # We will assume no parameters for now unless we implement a parser.
-        parameters: Dict[str, Any] = {}
-
-        return AgentReflex(
-            reflex_id=str(uuid.uuid4()),
-            action=action,
-            parameters=parameters,
-            reasoning=f"Matched SOP {best_sop.id}: {best_sop.title}. {best_sop.content}",
-            sop_id=best_sop.id,
-        )
+        logger.info(f"SOP {best_sop.id} has no associated reflex.")
+        return None
