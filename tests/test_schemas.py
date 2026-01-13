@@ -1,7 +1,9 @@
+from datetime import datetime
+
 import pytest
 from pydantic import ValidationError
 
-from coreason_signal.schemas import DeviceDefinition, SoftSensorModel
+from coreason_signal.schemas import AgentReflex, DeviceDefinition, LogEvent, SoftSensorModel
 
 
 def test_device_definition_valid() -> None:
@@ -60,3 +62,31 @@ def test_soft_sensor_model_invalid_constraint() -> None:
     # The custom validator raises a ValueError, which Pydantic wraps in a ValidationError
     assert "must be a numeric string" in str(excinfo.value)
     assert "zero" in str(excinfo.value)
+
+
+def test_log_event_valid() -> None:
+    """Test creating a valid LogEvent."""
+    event = LogEvent(
+        timestamp=datetime.now(),
+        source="LiquidHandler-01",
+        level="ERROR",
+        raw_message="ERR_VACUUM_PRESSURE_LOW",
+        metadata={"error_code": "0x4F"},
+    )
+    assert event.source == "LiquidHandler-01"
+    assert event.level == "ERROR"
+    assert event.metadata["error_code"] == "0x4F"
+
+
+def test_agent_reflex_valid() -> None:
+    """Test creating a valid AgentReflex."""
+    reflex = AgentReflex(
+        reflex_id="reflex-123",
+        action="RETRY",
+        parameters={"speed": 0.5},
+        reasoning="SOP-104 matches error.",
+        sop_id="SOP-104",
+    )
+    assert reflex.action == "RETRY"
+    assert reflex.parameters["speed"] == 0.5
+    assert reflex.sop_id == "SOP-104"
