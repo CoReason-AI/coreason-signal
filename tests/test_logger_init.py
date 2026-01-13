@@ -19,6 +19,11 @@ def test_logger_creates_directory() -> None:
     log_path = Path("logs")
 
     # 1. Ensure clean state
+    # If logger is already initialized (by other tests), it holds a lock on the file.
+    if "coreason_signal.utils.logger" in sys.modules:
+        from coreason_signal.utils.logger import logger
+        logger.remove()
+
     if log_path.exists():
         shutil.rmtree(log_path)
 
