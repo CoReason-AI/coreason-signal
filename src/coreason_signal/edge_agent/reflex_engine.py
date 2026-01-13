@@ -8,13 +8,10 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_signal
 
-from typing import List, Optional
+from typing import Optional
 
-import lancedb
-from fastembed import TextEmbedding
-from lancedb.table import Table
-
-from coreason_signal.schemas import AgentReflex, SOPDocument
+from coreason_signal.edge_agent.vector_store import LocalVectorStore
+from coreason_signal.schemas import AgentReflex, LogEvent
 from coreason_signal.utils.logger import logger
 
 
@@ -24,119 +21,65 @@ class ReflexEngine:
     Handles RAG-based decision making by querying local SOPs.
     """
 
-    TABLE_NAME = "sops"
-
-    def __init__(self, persistence_path: str = "./data/lancedb"):
+    def __init__(self, persistence_path: str = "./data/lancedb", vector_store: Optional[LocalVectorStore] = None):
         """
-        Initialize the Reflex Engine with a local vector store.
+        Initialize the Reflex Engine.
 
         Args:
-            persistence_path: Path to the LanceDB directory.
+            persistence_path: Path to the LanceDB directory (used if vector_store is not provided).
+            vector_store: Optional injected LocalVectorStore instance.
         """
-        self.persistence_path = persistence_path
-        self._db = lancedb.connect(self.persistence_path)
-
-        # Initialize embedding model (default BAAI/bge-small-en-v1.5)
-        # fastembed downloads the model automatically on first use.
-        self._embedding_model = TextEmbedding()
-
-        self._table: Optional[Table] = None
-        self._init_table()
-
-    def _get_table_names(self) -> List[str]:
-        """Helper to get list of table names robustly."""
-        tables_response = self._db.list_tables()
-        if isinstance(tables_response, list):
-            return tables_response
-        elif hasattr(tables_response, "tables"):
-            return tables_response.tables  # type: ignore
+        if vector_store:
+            self._vector_store = vector_store
         else:
-            return list(tables_response)
+            self._vector_store = LocalVectorStore(db_path=persistence_path)
 
-    def _init_table(self) -> None:
-        """Initialize or load the SOP table."""
-        try:
-            tables = self._get_table_names()
-            logger.debug(f"Existing tables: {tables}")
-
-            if self.TABLE_NAME in tables:
-                self._table = self._db.open_table(self.TABLE_NAME)
-                logger.info(f"Loaded existing table: {self.TABLE_NAME}")
-            else:
-                pass  # Lazy creation
-        except Exception as e:
-            logger.error(f"Failed to initialize table: {e}")
-            raise
-
-    def ingest_sops(self, sops: List[SOPDocument]) -> None:
+    def decide(self, event: LogEvent) -> Optional[AgentReflex]:
         """
-        Embed and store Standard Operating Procedures.
+        Query the SOPs based on the log event and return a reflex action.
 
         Args:
-            sops: List of SOPDocument objects to ingest.
-        """
-        if not sops:
-            return
-
-        logger.info(f"Ingesting {len(sops)} SOPs...")
-
-        texts = [sop.content for sop in sops]
-        embeddings = list(self._embedding_model.embed(texts))
-
-        data = []
-        for sop, vector in zip(sops, embeddings, strict=False):
-            item = sop.model_dump()
-            item["vector"] = vector.tolist()
-            data.append(item)
-
-        # Refresh table list
-        tables = self._get_table_names()
-        if self.TABLE_NAME in tables:
-            self._table = self._db.open_table(self.TABLE_NAME)
-            self._table.add(data)
-        else:
-            self._table = self._db.create_table(self.TABLE_NAME, data=data)
-
-        logger.info("Ingestion complete.")
-
-    def decide(self, context: str) -> Optional[AgentReflex]:
-        """
-        Query the SOPs based on the context (e.g., error message) and return a reflex action.
-
-        Args:
-            context: The semantic error message or context string.
+            event: The structured log event.
 
         Returns:
-            The AgentReflex from the most relevant SOP, or None if no relevant SOP is found.
+            The AgentReflex from the most relevant SOP, or None.
         """
-        if self._table is None:
-            tables = self._get_table_names()
-            if self.TABLE_NAME in tables:
-                self._table = self._db.open_table(self.TABLE_NAME)
-            else:
-                logger.warning("SOP table not found. Cannot make a decision.")
-                return None
+        # 1. Check if the event is an error.
+        #    Note: Real systems might have more complex logic.
+        #    The current tests imply we should look for "ERROR".
+        #    However, one test 'test_decide_ignores_non_error' explicitly checks this.
+        if event.level != "ERROR":
+            return None
 
-        # Embed the query
-        query_embedding = list(self._embedding_model.embed([context]))[0]
+        # 2. Extract context from the event
+        context = event.message
+        if not context or not context.strip():
+            return None
 
-        # Search
-        # We assume a limit of 1 for the single best reflex
-        results = self._table.search(query_embedding).metric("cosine").limit(1).to_pydantic(SOPDocument)
+        # 3. Query the vector store
+        try:
+            sops = self._vector_store.query(context, k=1)
+        except Exception as e:
+            logger.error(f"Vector store query failed: {e}")
+            return None
 
-        if not results:
+        if not sops:
             logger.info(f"No relevant SOP found for context: '{context}'")
             return None
 
-        best_sop = results[0]
-        # In a real system, we would check a similarity score threshold here.
-        # fastembed + lancedb usually returns L2 distance or cosine distance.
-        # For this atomic unit, we assume the top result is good enough if it exists.
-
+        best_sop = sops[0]
         logger.info(f"Matched SOP: {best_sop.id} ({best_sop.title})")
 
+        # 4. Return the reflex
         if best_sop.associated_reflex:
-            return best_sop.associated_reflex  # type: ignore[no-any-return]
+            # We might want to inject specific reflex ID or reason if missing
+            # But for now return what's in the SOP.
+            return best_sop.associated_reflex
 
-        logger.info(f"SOP {best_sop.id} has no associated reflex.")
-        return None
+        # If SOP has no specific reflex but was matched, maybe we default to NOTIFY?
+        # The test 'test_decide_default_action' expects 'NOTIFY' if no associated reflex.
+        return AgentReflex(
+            action_name="NOTIFY",
+            parameters={"event_id": event.id, "sop_id": best_sop.id},
+            reasoning=f"Matched SOP {best_sop.id} but no specific reflex defined.",
+        )
