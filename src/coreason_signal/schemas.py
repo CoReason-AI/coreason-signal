@@ -41,3 +41,14 @@ class SoftSensorModel(BaseModel):
             except ValueError:
                 raise ValueError(f"Constraint value for '{key}' must be a numeric string, got '{value}'") from None
         return v
+
+
+class SOPDocument(BaseModel):
+    """
+    Standard Operating Procedure (SOP) document for the Edge Agent's RAG system.
+    """
+
+    id: str  # e.g., "SOP-104"
+    title: str  # e.g., "Vacuum Pressure Low Recovery"
+    content: str  # e.g., "For vacuum errors, retry aspiration once at 50% speed."
+    metadata: Dict[str, str] = {}  # e.g., {"error_code": "ERR_VACUUM_PRESSURE_LOW"}
