@@ -36,12 +36,20 @@ class ReflexEngine:
             logger.debug(f"Ignoring non-error event: {event.level}")
             return None
 
+        if not event.raw_message.strip():
+            logger.warning("Event has empty message, skipping.")
+            return None
+
         logger.info(f"Analyzing error: {event.raw_message}")
 
         # Query SOPs
-        # Note: In a real implementation, we might parse the error code specifically.
-        # Here we use the raw message for semantic search.
-        sops = self._vector_store.query(event.raw_message, k=1)
+        try:
+            # Note: In a real implementation, we might parse the error code specifically.
+            # Here we use the raw message for semantic search.
+            sops = self._vector_store.query(event.raw_message, k=1)
+        except Exception as e:
+            logger.exception(f"Vector store query failed: {e}")
+            return None
 
         if not sops:
             logger.warning("No relevant SOP found for error.")
