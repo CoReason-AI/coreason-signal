@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime
 
 import pytest
 from pydantic import ValidationError
@@ -67,26 +67,27 @@ def test_soft_sensor_model_invalid_constraint() -> None:
 def test_log_event_valid() -> None:
     """Test creating a valid LogEvent."""
     event = LogEvent(
-        timestamp=datetime.now(),
-        source="LiquidHandler-01",
+        id="evt-001",
+        timestamp=datetime.datetime.now().isoformat(),
         level="ERROR",
-        raw_message="ERR_VACUUM_PRESSURE_LOW",
-        metadata={"error_code": "0x4F"},
+        source="LiquidHandler-01",
+        message="ERR_VACUUM_PRESSURE_LOW",
+        raw_code="0x4F",
     )
-    assert event.source == "LiquidHandler-01"
+    assert event.id == "evt-001"
     assert event.level == "ERROR"
-    assert event.metadata["error_code"] == "0x4F"
+    assert event.source == "LiquidHandler-01"
+    assert event.message == "ERR_VACUUM_PRESSURE_LOW"
+    assert event.raw_code == "0x4F"
 
 
 def test_agent_reflex_valid() -> None:
     """Test creating a valid AgentReflex."""
     reflex = AgentReflex(
-        reflex_id="reflex-123",
-        action="RETRY",
+        action_name="RETRY",
         parameters={"speed": 0.5},
         reasoning="SOP-104 matches error.",
-        sop_id="SOP-104",
     )
-    assert reflex.action == "RETRY"
+    assert reflex.action_name == "RETRY"
     assert reflex.parameters["speed"] == 0.5
-    assert reflex.sop_id == "SOP-104"
+    assert reflex.reasoning == "SOP-104 matches error."

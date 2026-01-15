@@ -1,9 +1,6 @@
-from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from typing import Any, Dict, List, Literal, Optional
-
-from pydantic import AnyUrl, BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 
 class DeviceDefinition(BaseModel):
@@ -46,45 +43,6 @@ class SoftSensorModel(BaseModel):
         return v
 
 
-class SOPDocument(BaseModel):
-    """
-    Standard Operating Procedure (SOP) document for the Edge Agent's RAG system.
-    """
-
-    id: str  # e.g., "SOP-104"
-    title: str  # e.g., "Vacuum Pressure Low Recovery"
-    content: str  # e.g., "For vacuum errors, retry aspiration once at 50% speed."
-    metadata: Dict[str, str] = {}  # e.g., {"error_code": "ERR_VACUUM_PRESSURE_LOW"}
-
-
-class LogEvent(BaseModel):
-    """
-    Structured log event from an instrument.
-    """
-
-    timestamp: datetime
-    source: str
-    level: str  # e.g., "INFO", "ERROR"
-    raw_message: str
-    metadata: Dict[str, Any] = {}
-
-
-class AgentReflex(BaseModel):
-    """
-    The decision/action output by the Edge Agent.
-    """
-
-    id: str = Field(..., min_length=1, description="Unique identifier for the model, e.g., 'model_titer_pred_v2'")
-    input_sensors: List[str] = Field(
-        ..., min_length=1, description="List of input sensors, e.g., ['ph', 'do2', 'agitation']"
-    )
-    target_variable: str = Field(..., min_length=1, description="The variable being predicted, e.g., 'titer_g_L'")
-    physics_constraints: Dict[str, str] = Field(
-        ..., description="Physics constraints for the model, e.g., {'min_titer': '0.0'}"
-    )
-    model_artifact: bytes = Field(..., min_length=1, description="The binary content of the ONNX model artifact")
-
-
 class AgentReflex(BaseModel):
     """
     Schema for an autonomous action taken by the Edge Agent.
@@ -124,5 +82,8 @@ class LogEvent(BaseModel):
 
     id: str = Field(..., min_length=1, description="Unique Event ID")
     timestamp: str = Field(..., description="ISO 8601 Timestamp")
+    level: str = Field(..., description="Log level, e.g., 'INFO', 'ERROR'")
+    source: str = Field(..., description="Source component/instrument ID")
     message: str = Field(..., description="The semantic log message, e.g., 'Vacuum Pressure Low'")
     raw_code: Optional[str] = Field(None, description="Original error code, e.g., 'ERR_0x4F'")
+    metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
