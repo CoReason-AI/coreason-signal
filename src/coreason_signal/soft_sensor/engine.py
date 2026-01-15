@@ -52,7 +52,7 @@ class SoftSensorEngine:
         Parse physics constraints into usable float values.
         Supports keys starting with 'min' (lower bound) and 'max' (upper bound).
         """
-        parsed = {}
+        parsed: Dict[str, float] = {}
         for key, value in self.config.physics_constraints.items():
             # Schema validation ensures value is a numeric string
             val = float(value)
@@ -60,6 +60,10 @@ class SoftSensorEngine:
                 parsed["min"] = val
             elif key.lower().startswith("max"):
                 parsed["max"] = val
+
+        if "min" in parsed and "max" in parsed and parsed["min"] > parsed["max"]:
+            raise ValueError(f"Invalid constraints: min ({parsed['min']}) > max ({parsed['max']})")
+
         return parsed
 
     def infer(self, inputs: Dict[str, float]) -> Dict[str, float]:

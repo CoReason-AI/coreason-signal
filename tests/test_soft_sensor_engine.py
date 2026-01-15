@@ -149,3 +149,58 @@ def test_invalid_constraint_parsing(mock_ort_session: Tuple[MagicMock, MagicMock
 
     engine = SoftSensorEngine(config)
     assert engine._constraints == {}
+
+
+def test_conflicting_constraints(mock_ort_session: Tuple[MagicMock, MagicMock]) -> None:
+    config = SoftSensorModel(
+        id="test_model_bad",
+        input_sensors=["a"],
+        target_variable="y",
+        physics_constraints={"min_y": "10.0", "max_y": "5.0"},  # Min > Max
+        model_artifact=b"bytes",
+    )
+    with pytest.raises(ValueError, match="Invalid constraints: min"):
+        SoftSensorEngine(config)
+
+
+def test_infer_extra_inputs(
+    sample_model_config: SoftSensorModel, mock_ort_session: Tuple[MagicMock, MagicMock]
+) -> None:
+    _, session_instance = mock_ort_session
+    engine = SoftSensorEngine(sample_model_config)
+    session_instance.run.return_value = [np.array([[5.0]], dtype=np.float32)]
+
+    inputs = {"temp": 37.0, "ph": 7.0, "extra": 99.9}
+    result = engine.infer(inputs)
+    assert result == {"growth_rate": 5.0}
+
+
+def test_infer_nan_output(sample_model_config: SoftSensorModel, mock_ort_session: Tuple[MagicMock, MagicMock]) -> None:
+    _, session_instance = mock_ort_session
+    engine = SoftSensorEngine(sample_model_config)
+
+    # Model returns NaN
+    session_instance.run.return_value = [np.array([[np.nan]], dtype=np.float32)]
+
+    inputs = {"temp": 37.0, "ph": 7.0}
+    result = engine.infer(inputs)
+
+    # NaN should pass through as constraints checks (NaN < min) are False
+    assert np.isnan(result["growth_rate"])
+
+
+def test_infer_zero_inputs(mock_ort_session: Tuple[MagicMock, MagicMock]) -> None:
+    _, session_instance = mock_ort_session
+    config = SoftSensorModel(
+        id="bias_model",
+        input_sensors=[],
+        target_variable="y",
+        physics_constraints={},
+        model_artifact=b"bytes",
+    )
+    engine = SoftSensorEngine(config)
+    session_instance.run.return_value = [np.array([[1.0]], dtype=np.float32)]
+
+    inputs: dict[str, float] = {}
+    result = engine.infer(inputs)
+    assert result == {"y": 1.0}
