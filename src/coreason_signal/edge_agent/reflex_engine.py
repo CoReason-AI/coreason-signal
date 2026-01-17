@@ -100,9 +100,7 @@ class ReflexEngine:
                 return future.result(timeout=self.decision_timeout)
             except concurrent.futures.TimeoutError:
                 ms_timeout = int(self.decision_timeout * 1000)
-                logger.critical(
-                    f"Reflex Engine Watchdog Triggered: Decision took >{ms_timeout}ms for event {event.id}"
-                )
+                logger.critical(f"Reflex Engine Watchdog Triggered: Decision took >{ms_timeout}ms for event {event.id}")
                 return AgentReflex(
                     action_name="PAUSE",
                     reasoning=f"Watchdog Timeout > {ms_timeout}ms",
