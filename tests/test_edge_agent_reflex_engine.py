@@ -20,11 +20,14 @@ def test_reflex_engine_init(mock_vector_store: MagicMock) -> None:
 
 
 def test_reflex_engine_init_default() -> None:
-    """Test initializing ReflexEngine without injecting vector store."""
+    """Test initializing ReflexEngine with explicit store (Refactored to assume caller responsibility)."""
+    # The default behavior was removed in favor of strict DI.
+    # We verify that passing a manually created store works.
     with patch("coreason_signal.edge_agent.reflex_engine.LocalVectorStore") as mock_lvs_cls:
-        engine = ReflexEngine(persistence_path="/tmp/test_db")
-        mock_lvs_cls.assert_called_once_with(db_path="/tmp/test_db")
-        assert engine._vector_store == mock_lvs_cls.return_value
+        # Caller must instantiate store
+        store_instance = mock_lvs_cls.return_value
+        engine = ReflexEngine(vector_store=store_instance)
+        assert engine._vector_store == store_instance
 
 
 def test_decide_ignores_non_error(mock_vector_store: MagicMock) -> None:

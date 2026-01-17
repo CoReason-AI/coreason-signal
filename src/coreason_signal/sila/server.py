@@ -15,6 +15,10 @@ from sila2.server import SilaServer
 from coreason_signal.schemas import DeviceDefinition
 from coreason_signal.utils.logger import logger
 
+# Default ports as per PRD/Architecture
+DEFAULT_SILA_PORT = 50052
+DEFAULT_ARROW_FLIGHT_PORT = 50055
+
 
 class SiLAGateway:
     """
@@ -25,7 +29,7 @@ class SiLAGateway:
     def __init__(
         self,
         device_def: DeviceDefinition,
-        arrow_flight_port: int = 50055,
+        arrow_flight_port: int = DEFAULT_ARROW_FLIGHT_PORT,
         server_instance: Optional[SilaServer] = None,
     ):
         """
@@ -43,7 +47,7 @@ class SiLAGateway:
         # Parse endpoint to extract host and port for SiLA
         # HttpUrl in Pydantic v2 has .host and .port attributes (or .host_str for ipv6)
         self.host = self.device_def.endpoint.host
-        self.port = self.device_def.endpoint.port or 50052
+        self.port = self.device_def.endpoint.port or DEFAULT_SILA_PORT
 
         logger.info(f"Initializing SiLAGateway for {self.device_def.id} on {self.host}:{self.port}")
         logger.info(f"Sidecar Arrow Flight Port configured at: {self.arrow_flight_port}")

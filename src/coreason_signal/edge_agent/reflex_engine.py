@@ -24,23 +24,17 @@ class ReflexEngine:
 
     def __init__(
         self,
-        persistence_path: str = "./data/lancedb",
-        vector_store: Optional[LocalVectorStore] = None,
+        vector_store: LocalVectorStore,
         decision_timeout: float = 0.2,
     ):
         """
         Initialize the Reflex Engine.
 
         Args:
-            persistence_path: Path to the LanceDB directory (used if vector_store is not provided).
-            vector_store: Optional injected LocalVectorStore instance.
+            vector_store: Injected LocalVectorStore instance.
             decision_timeout: Time in seconds before the Dead Man's Switch triggers (default: 0.2s).
         """
-        if vector_store:
-            self._vector_store = vector_store
-        else:
-            self._vector_store = LocalVectorStore(db_path=persistence_path)
-
+        self._vector_store = vector_store
         self.decision_timeout = decision_timeout
         # Use a persistent executor to avoid overhead and blocking shutdown issues
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
