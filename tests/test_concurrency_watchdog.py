@@ -32,15 +32,15 @@ def test_thundering_herd_timeout(mock_vector_store: MagicMock) -> None:
 
     Scenario:
     - 3 concurrent requests come in.
-    - Each request processing takes 150ms.
+    - Each request processing takes 180ms.
     - Timeout is 200ms.
     - Engine has max_workers=1 (serial processing).
 
     Expected Timeline:
     - T=0: Req1, Req2, Req3 submitted.
     - T=0: Req1 starts processing.
-    - T=150ms: Req1 finishes (Success). Req2 starts.
-    - T=200ms: Req2 times out (has been waiting 150ms + running 50ms). Returns PAUSE.
+    - T=180ms: Req1 finishes (Success). Req2 starts.
+    - T=200ms: Req2 times out (has been waiting 180ms + running 20ms). Returns PAUSE.
     - T=200ms: Req3 times out (has been waiting 200ms). Returns PAUSE.
     """
     engine = ReflexEngine(vector_store=mock_vector_store)
@@ -48,9 +48,11 @@ def test_thundering_herd_timeout(mock_vector_store: MagicMock) -> None:
     # Mock return value for success
     success_reflex = AgentReflex(action_name="SUCCESS", reasoning="OK")
 
-    # Define a side effect that sleeps 0.15s then returns success
+    # Define a side effect that sleeps 0.18s then returns success
+    # Increased from 0.15s to 0.18s to ensure Req 2 definitely times out
+    # even if there's slight scheduling jitter.
     def slow_logic(event: LogEvent) -> AgentReflex:
-        time.sleep(0.15)
+        time.sleep(0.18)
         return success_reflex
 
     # Patch the internal logic
@@ -84,7 +86,7 @@ def test_thundering_herd_timeout(mock_vector_store: MagicMock) -> None:
         assert results[0].action_name == "SUCCESS"
 
         # Request 2 should be PAUSE (Timeout)
-        # Because 150ms (wait) + 150ms (run) > 200ms
+        # Because 180ms (wait) + 180ms (run) > 200ms
         assert results[1] is not None
         assert results[1].action_name == "PAUSE"
         assert "Watchdog Timeout" in results[1].reasoning
