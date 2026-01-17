@@ -17,7 +17,7 @@ from coreason_signal.schemas import DeviceDefinition
 from coreason_signal.sila.server import SiLAGateway
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[misc]
 def mock_device_def() -> DeviceDefinition:
     return DeviceDefinition(
         id="TestInstrument",
@@ -47,7 +47,7 @@ def test_sila_gateway_initialization(mock_device_def: DeviceDefinition) -> None:
 
 def test_sila_gateway_dynamic_capabilities(mock_device_def: DeviceDefinition) -> None:
     """Test that capabilities are processed during initialization."""
-    with patch("coreason_signal.sila.server.SilaServer") as MockServer:
+    with patch("coreason_signal.sila.server.SilaServer"):
         gateway = SiLAGateway(device_def=mock_device_def)
 
         # In the current stub implementation, we just expect it to not crash

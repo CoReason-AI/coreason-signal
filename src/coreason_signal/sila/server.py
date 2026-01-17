@@ -45,9 +45,7 @@ class SiLAGateway:
         self.host = self.device_def.endpoint.host
         self.port = self.device_def.endpoint.port or 50052
 
-        logger.info(
-            f"Initializing SiLAGateway for {self.device_def.id} on {self.host}:{self.port}"
-        )
+        logger.info(f"Initializing SiLAGateway for {self.device_def.id} on {self.host}:{self.port}")
         logger.info(f"Sidecar Arrow Flight Port configured at: {self.arrow_flight_port}")
 
         if server_instance:
