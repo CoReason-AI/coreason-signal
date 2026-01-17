@@ -32,27 +32,29 @@ def test_thundering_herd_timeout(mock_vector_store: MagicMock) -> None:
 
     Scenario:
     - 3 concurrent requests come in.
-    - Each request processing takes 120ms.
-    - Timeout is 200ms.
+    - Each request processing takes 600ms (mocked).
+    - Timeout is 1000ms (configured).
     - Engine has max_workers=1 (serial processing).
 
     Expected Timeline:
     - T=0: Req1, Req2, Req3 submitted.
     - T=0: Req1 starts processing.
-    - T=120ms: Req1 finishes (Success). Req2 starts.
-    - T=200ms: Req2 times out (has been waiting 120ms + running 80ms). Returns PAUSE.
-    - T=200ms: Req3 times out (has been waiting 200ms). Returns PAUSE.
+    - T=600ms: Req1 finishes (Success < 1000ms). Req2 starts.
+    - T=1000ms: Req2 times out (has been waiting 600ms + running 400ms). Returns PAUSE.
+    - T=1000ms: Req3 times out (has been waiting 1000ms). Returns PAUSE.
     """
-    engine = ReflexEngine(vector_store=mock_vector_store)
+    # Initialize with a generous 1.0s timeout to allow for CI overhead
+    engine = ReflexEngine(vector_store=mock_vector_store, decision_timeout=1.0)
 
     # Mock return value for success
     success_reflex = AgentReflex(action_name="SUCCESS", reasoning="OK")
 
-    # Define a side effect that sleeps 0.12s then returns success
-    # Using 0.12s ensures Req 1 succeeds (0.12 < 0.20) with safe margin,
-    # but Req 2 fails (0.12 wait + 0.12 run = 0.24 > 0.20).
+    # Define a side effect that sleeps 0.6s then returns success
+    # 0.6s < 1.0s (Req 1 Success)
+    # 0.6s + 0.6s = 1.2s > 1.0s (Req 2 Fail)
+    # Margin = 400ms (huge safety buffer for CI)
     def slow_logic(event: LogEvent) -> AgentReflex:
-        time.sleep(0.12)
+        time.sleep(0.6)
         return success_reflex
 
     # Patch the internal logic
@@ -99,17 +101,18 @@ def test_recovery_after_congestion(mock_vector_store: MagicMock) -> None:
     """
     Verify that the engine recovers after the congestion clears.
     """
+    # Use default 200ms timeout for this test, but adjust logic to be robust
     engine = ReflexEngine(vector_store=mock_vector_store)
     success_reflex = AgentReflex(action_name="SUCCESS", reasoning="OK")
 
-    # Logic: 1st call is slow, subsequent calls are fast
+    # Logic: 1st call is slow (0.3s > 0.2s), subsequent calls are fast
     call_count = 0
 
     def variable_logic(event: LogEvent) -> AgentReflex:
         nonlocal call_count
         call_count += 1
         if call_count == 1:
-            time.sleep(0.3)  # Very slow, triggers timeout
+            time.sleep(0.3)  # Slow
         else:
             time.sleep(0.01)  # Fast
         return success_reflex
@@ -121,10 +124,8 @@ def test_recovery_after_congestion(mock_vector_store: MagicMock) -> None:
         assert res1 is not None
         assert res1.action_name == "PAUSE"
 
-        # Wait for the background task to theoretically finish
-        # (The background thread sleeps 0.3s total. We timed out at 0.2s.
-        # We need to wait another ~0.1s + buffer for the worker to be free)
-        time.sleep(0.2)
+        # Wait for the background task to clear (0.3s sleep + overhead)
+        time.sleep(0.4)
 
         # 2. Fast call
         evt2 = LogEvent(id="2", timestamp="", level="ERROR", source="t", message="m")
