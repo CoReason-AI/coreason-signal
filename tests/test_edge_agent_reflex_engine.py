@@ -170,9 +170,9 @@ def test_decide_watchdog_timeout(mock_vector_store: MagicMock) -> None:
     """Test that decide returns PAUSE if logic takes > 0.2s."""
     engine = ReflexEngine(vector_store=mock_vector_store)
 
-    # Mock _decide_logic to sleep longer than the timeout
-    # We patch the instance method
-    with patch.object(engine, "_decide_logic", side_effect=lambda e: time.sleep(0.3)):
+    # Mock _decide_logic to sleep longer than the timeout (0.5s > 0.2s)
+    # This helps differentiate between 'wait for completion' vs 'overhead'
+    with patch.object(engine, "_decide_logic", side_effect=lambda e: time.sleep(0.5)):
         event = LogEvent(
             id="evt-timeout",
             timestamp=datetime.datetime.now().isoformat(),
@@ -185,10 +185,9 @@ def test_decide_watchdog_timeout(mock_vector_store: MagicMock) -> None:
         reflex = engine.decide(event)
         duration = time.time() - start_time
 
-        # Ensure we returned reasonably quickly (checking upper bound)
-        # It should be close to 0.2s, definitely less than the 0.3s sleep
-        # Relaxed to 0.29s to account for CI/thread switching overhead (observed ~262ms)
-        assert duration < 0.29
+        # If strict timeout works, duration should be ~0.2s + overhead.
+        # It must be significantly less than 0.5s to prove we didn't wait.
+        assert duration < 0.4
 
         assert reflex is not None
         assert reflex.action_name == "PAUSE"
