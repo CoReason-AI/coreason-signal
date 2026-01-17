@@ -1,4 +1,5 @@
 import datetime
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,6 +16,7 @@ def mock_vector_store() -> MagicMock:
 def test_reflex_engine_init(mock_vector_store: MagicMock) -> None:
     engine = ReflexEngine(vector_store=mock_vector_store)
     assert engine._vector_store == mock_vector_store
+    assert engine._executor is not None
 
 
 def test_reflex_engine_init_default() -> None:
@@ -162,3 +164,70 @@ def test_decide_multiple_sops_prioritization(mock_vector_store: MagicMock) -> No
     reflex = engine.decide(event)
     assert reflex is not None
     assert reflex.action_name == "A"
+
+
+def test_decide_watchdog_timeout(mock_vector_store: MagicMock) -> None:
+    """Test that decide returns PAUSE if logic takes > 0.2s."""
+    engine = ReflexEngine(vector_store=mock_vector_store)
+
+    # Mock _decide_logic to sleep longer than the timeout (0.5s > 0.2s)
+    # This helps differentiate between 'wait for completion' vs 'overhead'
+    with patch.object(engine, "_decide_logic", side_effect=lambda e: time.sleep(0.5)):
+        event = LogEvent(
+            id="evt-timeout",
+            timestamp=datetime.datetime.now().isoformat(),
+            level="ERROR",
+            source="test",
+            message="Slow query",
+        )
+
+        start_time = time.time()
+        reflex = engine.decide(event)
+        duration = time.time() - start_time
+
+        # If strict timeout works, duration should be ~0.2s + overhead.
+        # It must be significantly less than 0.5s to prove we didn't wait.
+        assert duration < 0.4
+
+        assert reflex is not None
+        assert reflex.action_name == "PAUSE"
+        assert reflex.reasoning == "Watchdog Timeout > 200ms"
+        assert reflex.parameters["event_id"] == "evt-timeout"
+
+
+def test_decide_watchdog_internal_error(mock_vector_store: MagicMock) -> None:
+    """Test that decide catches internal thread errors."""
+    engine = ReflexEngine(vector_store=mock_vector_store)
+
+    # Mock _decide_logic to raise an unexpected exception
+    with patch.object(engine, "_decide_logic", side_effect=RuntimeError("Thread Crash")):
+        event = LogEvent(
+            id="evt-crash",
+            timestamp=datetime.datetime.now().isoformat(),
+            level="ERROR",
+            source="test",
+            message="Crash me",
+        )
+
+        reflex = engine.decide(event)
+        assert reflex is None
+
+
+def test_decide_executor_failure(mock_vector_store: MagicMock) -> None:
+    """Test that decide handles failures during task submission."""
+    engine = ReflexEngine(vector_store=mock_vector_store)
+
+    # Mock the executor submit to raise exception
+    engine._executor = MagicMock()
+    engine._executor.submit.side_effect = RuntimeError("Executor full")
+
+    event = LogEvent(
+        id="evt-exec-fail",
+        timestamp=datetime.datetime.now().isoformat(),
+        level="ERROR",
+        source="test",
+        message="Fail submission",
+    )
+
+    reflex = engine.decide(event)
+    assert reflex is None

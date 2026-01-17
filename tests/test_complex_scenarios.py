@@ -112,15 +112,7 @@ def test_vector_store_returns_invalid_type_graceful_fail(mock_vector_store: Magi
         message="Speed error",
     )
 
-    # We expect this to raise an AttributeError inside decide() when accessing .associated_reflex
-    # OR we want to verify if we SHOULD wrap this in try/except.
-    # The requirement said "wrap vector store queries in try/except".
-    # But this error happens AFTER the query returns, during processing.
-
-    with pytest.raises(AttributeError):
-        engine.decide(event)
-
-    # Note: If we want the engine to be robust against THIS too, we would need to catch Exception broadly.
-    # Given the robust requirements, maybe we should?
-    # But strictly, the vector store contract says it returns List[SOPDocument].
-    # So this test confirms that violating the contract causes a crash.
+    # Updated expectation: The engine is now wrapped in a catch-all block for the thread.
+    # It should catch the AttributeError raised when accessing .id on the dict, log it, and return None.
+    reflex = engine.decide(event)
+    assert reflex is None

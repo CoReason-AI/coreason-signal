@@ -8,6 +8,7 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_signal
 
+import concurrent.futures
 from typing import Optional
 
 from coreason_signal.edge_agent.vector_store import LocalVectorStore
@@ -34,20 +35,14 @@ class ReflexEngine:
         else:
             self._vector_store = LocalVectorStore(db_path=persistence_path)
 
-    def decide(self, event: LogEvent) -> Optional[AgentReflex]:
+        # Use a persistent executor to avoid overhead and blocking shutdown issues
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
+    def _decide_logic(self, event: LogEvent) -> Optional[AgentReflex]:
         """
-        Query the SOPs based on the log event and return a reflex action.
-
-        Args:
-            event: The structured log event.
-
-        Returns:
-            The AgentReflex from the most relevant SOP, or None.
+        Internal logic for decision making.
         """
         # 1. Check if the event is an error.
-        #    Note: Real systems might have more complex logic.
-        #    The current tests imply we should look for "ERROR".
-        #    However, one test 'test_decide_ignores_non_error' explicitly checks this.
         if event.level != "ERROR":
             return None
 
@@ -72,14 +67,41 @@ class ReflexEngine:
 
         # 4. Return the reflex
         if best_sop.associated_reflex:
-            # We might want to inject specific reflex ID or reason if missing
-            # But for now return what's in the SOP.
             return best_sop.associated_reflex
 
-        # If SOP has no specific reflex but was matched, maybe we default to NOTIFY?
-        # The test 'test_decide_default_action' expects 'NOTIFY' if no associated reflex.
+        # If SOP has no specific reflex but was matched, default to NOTIFY
         return AgentReflex(
             action_name="NOTIFY",
             parameters={"event_id": event.id, "sop_id": best_sop.id},
             reasoning=f"Matched SOP {best_sop.id} but no specific reflex defined.",
         )
+
+    def decide(self, event: LogEvent) -> Optional[AgentReflex]:
+        """
+        Query the SOPs based on the log event and return a reflex action.
+        Enforces a 200ms timeout (Dead Man's Switch).
+
+        Args:
+            event: The structured log event.
+
+        Returns:
+            The AgentReflex from the most relevant SOP, None, or a PAUSE reflex on timeout.
+        """
+        try:
+            future = self._executor.submit(self._decide_logic, event)
+            try:
+                return future.result(timeout=0.2)
+            except concurrent.futures.TimeoutError:
+                logger.critical(f"Reflex Engine Watchdog Triggered: Decision took >200ms for event {event.id}")
+                return AgentReflex(
+                    action_name="PAUSE",
+                    reasoning="Watchdog Timeout > 200ms",
+                    parameters={"event_id": event.id},
+                )
+            except Exception as e:
+                logger.exception(f"Reflex Engine crashed: {e}")
+                return None
+        except Exception as e:
+            # Catch submission errors (e.g., executor shutdown)
+            logger.exception(f"Reflex Engine submission failed: {e}")
+            return None
