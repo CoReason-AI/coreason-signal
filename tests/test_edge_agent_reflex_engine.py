@@ -16,6 +16,7 @@ def mock_vector_store() -> MagicMock:
 def test_reflex_engine_init(mock_vector_store: MagicMock) -> None:
     engine = ReflexEngine(vector_store=mock_vector_store)
     assert engine._vector_store == mock_vector_store
+    assert engine._executor is not None
 
 
 def test_reflex_engine_init_default() -> None:
@@ -210,3 +211,23 @@ def test_decide_watchdog_internal_error(mock_vector_store: MagicMock) -> None:
 
         reflex = engine.decide(event)
         assert reflex is None
+
+
+def test_decide_executor_failure(mock_vector_store: MagicMock) -> None:
+    """Test that decide handles failures during task submission."""
+    engine = ReflexEngine(vector_store=mock_vector_store)
+
+    # Mock the executor submit to raise exception
+    engine._executor = MagicMock()
+    engine._executor.submit.side_effect = RuntimeError("Executor full")
+
+    event = LogEvent(
+        id="evt-exec-fail",
+        timestamp=datetime.datetime.now().isoformat(),
+        level="ERROR",
+        source="test",
+        message="Fail submission",
+    )
+
+    reflex = engine.decide(event)
+    assert reflex is None

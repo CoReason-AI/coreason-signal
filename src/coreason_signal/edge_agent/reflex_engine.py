@@ -35,6 +35,9 @@ class ReflexEngine:
         else:
             self._vector_store = LocalVectorStore(db_path=persistence_path)
 
+        # Use a persistent executor to avoid overhead and blocking shutdown issues
+        self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
     def _decide_logic(self, event: LogEvent) -> Optional[AgentReflex]:
         """
         Internal logic for decision making.
@@ -84,9 +87,8 @@ class ReflexEngine:
         Returns:
             The AgentReflex from the most relevant SOP, None, or a PAUSE reflex on timeout.
         """
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         try:
-            future = executor.submit(self._decide_logic, event)
+            future = self._executor.submit(self._decide_logic, event)
             try:
                 return future.result(timeout=0.2)
             except concurrent.futures.TimeoutError:
@@ -99,6 +101,7 @@ class ReflexEngine:
             except Exception as e:
                 logger.exception(f"Reflex Engine crashed: {e}")
                 return None
-        finally:
-            # wait=False is critical to ensure we don't block if the thread is stuck
-            executor.shutdown(wait=False, cancel_futures=True)
+        except Exception as e:
+            # Catch submission errors (e.g., executor shutdown)
+            logger.exception(f"Reflex Engine submission failed: {e}")
+            return None
