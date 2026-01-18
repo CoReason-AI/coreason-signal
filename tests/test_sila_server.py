@@ -47,30 +47,68 @@ def test_sila_gateway_initialization(mock_device_def: DeviceDefinition) -> None:
 
 def test_sila_gateway_dynamic_capabilities(mock_device_def: DeviceDefinition) -> None:
     """Test that capabilities are processed during initialization."""
-    with patch("coreason_signal.sila.server.SilaServer"):
-        gateway = SiLAGateway(device_def=mock_device_def)
+    with patch("coreason_signal.sila.server.SilaServer") as MockServer:
+        # We also need to patch FeatureRegistry since it might fail if sila2 checks types strictly
+        # or if we want to verify calls.
+        with patch("coreason_signal.sila.server.FeatureRegistry") as MockRegistry:
+            # Setup mocks
+            mock_feature_def = MagicMock()
+            mock_impl = MagicMock()
+            MockRegistry.create_feature.return_value = mock_feature_def
+            MockRegistry.create_implementation.return_value = mock_impl
 
-        # In the current stub implementation, we just expect it to not crash
-        # and log the capabilities. We can check if _load_capabilities ran.
-        # Since we can't easily spy on internal methods without setup,
-        # we rely on the fact that if it crashed, this test would fail.
-        assert gateway.server is not None
+            # Setup Server instance mock
+            server_instance = MockServer.return_value
+
+            SiLAGateway(device_def=mock_device_def)
+
+            # Verify FeatureRegistry was called for each capability
+            assert MockRegistry.create_feature.call_count == 2
+            MockRegistry.create_feature.assert_any_call("Transfer")
+            MockRegistry.create_feature.assert_any_call("Mix")
+
+            # Verify set_feature_implementation was called
+            assert server_instance.set_feature_implementation.call_count == 2
+            server_instance.set_feature_implementation.assert_any_call(mock_feature_def, mock_impl)
+
+
+def test_sila_gateway_capability_loading_error(mock_device_def: DeviceDefinition) -> None:
+    """Test error handling during capability loading."""
+    with patch("coreason_signal.sila.server.SilaServer"):
+        with patch("coreason_signal.sila.server.FeatureRegistry") as MockRegistry:
+            # Simulate error on first call
+            MockRegistry.create_feature.side_effect = RuntimeError("Invalid Feature")
+
+            SiLAGateway(device_def=mock_device_def)
+
+            # Should not crash, but log error (verified by coverage)
+            # We can verify it continued to try or stopped depending on logic.
+            # Logic loop continues.
+            assert MockRegistry.create_feature.call_count == 2
 
 
 def test_sila_gateway_start_stop(mock_device_def: DeviceDefinition) -> None:
     """Test start and stop methods delegate to the server."""
     mock_server_instance = MagicMock()
-    gateway = SiLAGateway(device_def=mock_device_def, server_instance=mock_server_instance)
+    # We need to mock FeatureRegistry to avoid side effects during init inside Gateway if we were not passing instance
+    # But here we pass server_instance, so we just need to ensure _load_capabilities doesn't crash
+    # Real _load_capabilities will run.
+    # We should patch FeatureRegistry to mock the actual Feature creation logic to avoid dependency on sila2 internals
+    # in unit test
 
-    gateway.start()
-    mock_server_instance.run.assert_called_once_with(block=False)
+    with patch("coreason_signal.sila.server.FeatureRegistry"):
+        gateway = SiLAGateway(device_def=mock_device_def, server_instance=mock_server_instance)
 
-    gateway.stop()
-    mock_server_instance.stop.assert_called_once()
+        gateway.start()
+        mock_server_instance.run.assert_called_once_with(block=False)
+
+        gateway.stop()
+        mock_server_instance.stop.assert_called_once()
 
 
 def test_sila_gateway_custom_arrow_port(mock_device_def: DeviceDefinition) -> None:
     """Test configuration of a custom Arrow Flight sidecar port."""
     with patch("coreason_signal.sila.server.SilaServer"):
-        gateway = SiLAGateway(device_def=mock_device_def, arrow_flight_port=9999)
-        assert gateway.arrow_flight_port == 9999
+        with patch("coreason_signal.sila.server.FeatureRegistry"):
+            gateway = SiLAGateway(device_def=mock_device_def, arrow_flight_port=9999)
+            assert gateway.arrow_flight_port == 9999
