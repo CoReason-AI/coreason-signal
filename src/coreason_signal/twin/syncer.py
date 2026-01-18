@@ -8,6 +8,7 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_signal
 
+import math
 from typing import Any, Callable, Dict, List, Optional, Protocol
 
 from coreason_signal.schemas import SemanticFact, TwinUpdate
@@ -68,6 +69,10 @@ class TwinSyncer:
         Check if the value change is significant enough to sync.
         Uses Delta Throttling.
         """
+        # Always sync special values (NaN, Inf) or if it's the first value
+        if math.isnan(value) or math.isinf(value):
+            return True
+
         if entity_id not in self._state_cache:
             self._state_cache[entity_id] = {}
             return True  # Always sync first value
@@ -76,6 +81,10 @@ class TwinSyncer:
             return True  # Always sync first value for this property
 
         last_value = self._state_cache[entity_id][property_name]
+
+        # If last value was NaN/Inf and new is valid, sync.
+        if math.isnan(last_value) or math.isinf(last_value):
+            return True
 
         # Avoid division by zero
         if last_value == 0:
@@ -112,11 +121,6 @@ class TwinSyncer:
             logger.debug(f"Throttled update for {entity_id}.{property_name}: {value}")
             return False
 
-        # Update cache
-        if entity_id not in self._state_cache:
-            self._state_cache[entity_id] = {}
-        self._state_cache[entity_id][property_name] = value
-
         # Fact Promotion
         facts = self._derive_facts(entity_id, property_name, value)
 
@@ -132,6 +136,13 @@ class TwinSyncer:
         try:
             self.connector.update_node(update)
             logger.info(f"Synced {entity_id}.{property_name} = {value} ({len(facts)} facts)")
+
+            # CRITICAL: Only update cache AFTER successful sync
+            # This ensures that if the network fails, we will retry (not throttle) the next time.
+            if entity_id not in self._state_cache:
+                self._state_cache[entity_id] = {}
+            self._state_cache[entity_id][property_name] = value
+
             return True
         except Exception as e:
             logger.error(f"Failed to sync twin update for {entity_id}: {e}")
