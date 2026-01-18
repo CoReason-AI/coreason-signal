@@ -38,7 +38,7 @@ def test_sila_gateway_initialization(mock_device_def: DeviceDefinition) -> None:
         MockServer.assert_called_once()
         call_kwargs = MockServer.call_args[1]
         assert call_kwargs["server_name"] == "TestInstrument"
-        assert call_kwargs["port"] == 50052
+        # assert call_kwargs["port"] == 50052  # Removed as SilaServer takes port in start()
 
         # Verify internal state
         assert gateway.arrow_flight_port == 50055  # Default
@@ -100,7 +100,8 @@ def test_sila_gateway_start_stop(mock_device_def: DeviceDefinition) -> None:
         gateway = SiLAGateway(device_def=mock_device_def, server_instance=mock_server_instance)
 
         gateway.start()
-        mock_server_instance.run.assert_called_once_with(block=False)
+        # Updated to reflect new start signature: address="0.0.0.0", port=self.port
+        mock_server_instance.start.assert_called_once_with(address="0.0.0.0", port=50052)
 
         gateway.stop()
         mock_server_instance.stop.assert_called_once()
