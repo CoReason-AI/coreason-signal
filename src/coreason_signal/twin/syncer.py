@@ -9,6 +9,8 @@
 # Source Code: https://github.com/CoReason-AI/coreason_signal
 
 import math
+import threading
+from collections import defaultdict
 from typing import Any, Callable, Dict, List, Optional, Protocol
 
 from coreason_signal.schemas import SemanticFact, TwinUpdate
@@ -47,10 +49,13 @@ class TwinSyncer:
         """
         self.connector = connector
         self.default_sigma_threshold = default_sigma_threshold
-        # Cache structure: {entity_id: {property_name: last_value}}
-        self._state_cache: Dict[str, Dict[str, float]] = {}
+        self._lock = threading.RLock()
+
+        # Cache structure: {entity_id: {property_name: last_synced_value}}
+        self._last_synced_state: Dict[str, Dict[str, float]] = {}
+
         # Fact rules: {property_name: [rule_function]}
-        self._fact_rules: Dict[str, List[Callable[[str, Any], Optional[SemanticFact]]]] = {}
+        self._fact_rules: Dict[str, List[Callable[[str, Any], Optional[SemanticFact]]]] = defaultdict(list)
 
     def register_fact_rule(self, property_name: str, rule: Callable[[str, Any], Optional[SemanticFact]]) -> None:
         """
@@ -60,39 +65,50 @@ class TwinSyncer:
             property_name: The property to listen to (e.g., "ph").
             rule: A function taking (entity_id, value) and returning a SemanticFact or None.
         """
-        if property_name not in self._fact_rules:
-            self._fact_rules[property_name] = []
-        self._fact_rules[property_name].append(rule)
+        with self._lock:
+            self._fact_rules[property_name].append(rule)
+
+    @staticmethod
+    def _is_significant_change(
+        old_value: float, new_value: float, threshold: float, zero_tolerance: float = 1e-6
+    ) -> bool:
+        """
+        Determine if the change between old and new values is significant.
+        Handles NaN, Inf, and Zero divisions.
+        """
+        # 1. NaN/Inf handling
+        if math.isnan(new_value) or math.isinf(new_value):
+            return True  # Always sync anomaly
+        if math.isnan(old_value) or math.isinf(old_value):
+            return True  # Always sync recovery from anomaly
+
+        # 2. Zero handling
+        if abs(old_value) < zero_tolerance:
+            # If old was ~0, any change > tolerance is significant
+            return abs(new_value - old_value) > zero_tolerance
+
+        # 3. Relative change
+        delta = abs(new_value - old_value) / abs(old_value)
+        return delta >= threshold
 
     def _should_sync(self, entity_id: str, property_name: str, value: float, threshold: float) -> bool:
         """
         Check if the value change is significant enough to sync.
         Uses Delta Throttling.
         """
-        # Always sync special values (NaN, Inf) or if it's the first value
+        # Always sync special values (NaN, Inf) if we don't know the state
         if math.isnan(value) or math.isinf(value):
             return True
 
-        if entity_id not in self._state_cache:
-            self._state_cache[entity_id] = {}
+        if entity_id not in self._last_synced_state:
             return True  # Always sync first value
 
-        if property_name not in self._state_cache[entity_id]:
+        if property_name not in self._last_synced_state[entity_id]:
             return True  # Always sync first value for this property
 
-        last_value = self._state_cache[entity_id][property_name]
+        last_value = self._last_synced_state[entity_id][property_name]
 
-        # If last value was NaN/Inf and new is valid, sync.
-        if math.isnan(last_value) or math.isinf(last_value):
-            return True
-
-        # Avoid division by zero
-        if last_value == 0:
-            return abs(value - last_value) > 1e-6
-
-        # Calculate relative change
-        delta = abs(value - last_value) / abs(last_value)
-        return delta >= threshold
+        return self._is_significant_change(last_value, value, threshold)
 
     def sync_state(
         self,
@@ -117,12 +133,19 @@ class TwinSyncer:
         """
         eff_threshold = threshold if threshold is not None else self.default_sigma_threshold
 
-        if not self._should_sync(entity_id, property_name, value, eff_threshold):
-            logger.debug(f"Throttled update for {entity_id}.{property_name}: {value}")
-            return False
+        with self._lock:
+            if not self._should_sync(entity_id, property_name, value, eff_threshold):
+                logger.debug(f"Throttled update for {entity_id}.{property_name}: {value}")
+                return False
 
-        # Fact Promotion
-        facts = self._derive_facts(entity_id, property_name, value)
+        # Fact Promotion (can run outside lock if rules are thread-safe, but accessing rules list needs lock if dynamic)
+        # For safety, let's copy the rules list under lock or just run it. The lock is RLock so re-entry is fine.
+        # However, calling external code under lock is generally bad (deadlocks).
+        # We will fetch rules under lock, run outside.
+        with self._lock:
+            rules = list(self._fact_rules.get(property_name, []))
+
+        facts = self._derive_facts_from_rules(rules, entity_id, value, property_name)
 
         # Create Update Payload
         update = TwinUpdate(
@@ -132,33 +155,38 @@ class TwinSyncer:
             derived_facts=facts,
         )
 
-        # Sync
+        # Sync (Network Call - Do NOT hold lock)
         try:
             self.connector.update_node(update)
             logger.info(f"Synced {entity_id}.{property_name} = {value} ({len(facts)} facts)")
 
-            # CRITICAL: Only update cache AFTER successful sync
-            # This ensures that if the network fails, we will retry (not throttle) the next time.
-            if entity_id not in self._state_cache:
-                self._state_cache[entity_id] = {}
-            self._state_cache[entity_id][property_name] = value
+            # Update cache AFTER successful sync
+            with self._lock:
+                if entity_id not in self._last_synced_state:
+                    self._last_synced_state[entity_id] = {}
+                self._last_synced_state[entity_id][property_name] = value
 
             return True
         except Exception as e:
             logger.error(f"Failed to sync twin update for {entity_id}: {e}")
             return False
 
-    def _derive_facts(self, entity_id: str, property_name: str, value: float) -> List[SemanticFact]:
+    def _derive_facts_from_rules(
+        self,
+        rules: List[Callable[[str, Any], Optional[SemanticFact]]],
+        entity_id: str,
+        value: float,
+        property_name: str,
+    ) -> List[SemanticFact]:
         """
-        Apply registered rules to derive facts.
+        Apply rules to derive facts.
         """
         facts: List[SemanticFact] = []
-        if property_name in self._fact_rules:
-            for rule in self._fact_rules[property_name]:
-                try:
-                    fact = rule(entity_id, value)
-                    if fact:
-                        facts.append(fact)
-                except Exception as e:
-                    logger.warning(f"Fact rule failed for {property_name}: {e}")
+        for rule in rules:
+            try:
+                fact = rule(entity_id, value)
+                if fact:
+                    facts.append(fact)
+            except Exception as e:
+                logger.warning(f"Fact rule failed for {property_name}: {e}")
         return facts

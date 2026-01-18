@@ -44,21 +44,21 @@ def test_recovery_from_sync_failure(twin_syncer: TwinSyncer, mock_connector: Mag
 
     # 1. First sync works (baseline)
     twin_syncer.sync_state(entity_id, prop, 30.0, ts)
-    assert twin_syncer._state_cache[entity_id][prop] == 30.0
+    assert twin_syncer._last_synced_state[entity_id][prop] == 30.0
 
     # 2. Update to 37.0 fails due to network error
     mock_connector.update_node.side_effect = RuntimeError("Network Down")
     synced = twin_syncer.sync_state(entity_id, prop, val, ts)
     assert synced is False
     # CRITICAL: Cache should STILL reflect 30.0, not 37.0
-    assert twin_syncer._state_cache[entity_id][prop] == 30.0
+    assert twin_syncer._last_synced_state[entity_id][prop] == 30.0
 
     # 3. Retry 37.0 (Network Back Up)
     mock_connector.update_node.side_effect = None
     synced = twin_syncer.sync_state(entity_id, prop, val, ts)
     assert synced is True
     # Now cache should be 37.0
-    assert twin_syncer._state_cache[entity_id][prop] == 37.0
+    assert twin_syncer._last_synced_state[entity_id][prop] == 37.0
 
 
 def test_nan_handling(twin_syncer: TwinSyncer, mock_connector: MagicMock) -> None:
@@ -72,6 +72,7 @@ def test_nan_handling(twin_syncer: TwinSyncer, mock_connector: MagicMock) -> Non
     twin_syncer.sync_state(entity_id, prop, 50.0, "ts")
 
     # 2. Sync NaN - Should Sync
+    # This hits `_should_sync` line 102: if math.isnan(value): return True
     synced = twin_syncer.sync_state(entity_id, prop, float("nan"), "ts")
     assert synced is True
 
@@ -79,8 +80,7 @@ def test_nan_handling(twin_syncer: TwinSyncer, mock_connector: MagicMock) -> Non
     update = mock_connector.update_node.call_args[0][0]
     assert math.isnan(update.properties[prop])
 
-    # 3. Sync NaN again - Should Sync (NaN is always significant or we can't throttle it reliably)
-    # Our logic says: if math.isnan(value) -> return True
+    # 3. Sync NaN again - Should Sync
     synced = twin_syncer.sync_state(entity_id, prop, float("nan"), "ts")
     assert synced is True
 
@@ -117,8 +117,8 @@ def test_concurrency_smoke(twin_syncer: TwinSyncer, mock_connector: MagicMock) -
             future.result()  # Should not raise
 
     # Verify final state exists
-    assert "Bio-1" in twin_syncer._state_cache
-    assert "concurrent_prop" in twin_syncer._state_cache["Bio-1"]
+    assert "Bio-1" in twin_syncer._last_synced_state
+    assert "concurrent_prop" in twin_syncer._last_synced_state["Bio-1"]
 
 
 def test_transition_from_nan_to_valid(twin_syncer: TwinSyncer) -> None:
@@ -134,4 +134,18 @@ def test_transition_from_nan_to_valid(twin_syncer: TwinSyncer) -> None:
     # Sync valid - should pass (NaN -> Number is significant)
     synced = twin_syncer.sync_state(entity_id, prop, 7.0, "ts")
     assert synced is True
-    assert twin_syncer._state_cache[entity_id][prop] == 7.0
+    assert twin_syncer._last_synced_state[entity_id][prop] == 7.0
+
+
+def test_is_significant_change_coverage() -> None:
+    """
+    Directly test static method _is_significant_change to hit edge cases (lines 80-81).
+    """
+    # Case 1: New value is NaN -> True (Covered by line 80)
+    assert TwinSyncer._is_significant_change(1.0, float("nan"), 0.1) is True
+
+    # Case 2: New value is Inf -> True (Covered by line 80)
+    assert TwinSyncer._is_significant_change(1.0, float("inf"), 0.1) is True
+
+    # Case 3: Old value is NaN -> True (Covered by line 82)
+    assert TwinSyncer._is_significant_change(float("nan"), 1.0, 0.1) is True

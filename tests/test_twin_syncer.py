@@ -34,7 +34,7 @@ def twin_syncer(mock_connector: MagicMock) -> TwinSyncer:
 
 def test_initialization(twin_syncer: TwinSyncer) -> None:
     assert twin_syncer.default_sigma_threshold == 0.1
-    assert twin_syncer._state_cache == {}
+    assert twin_syncer._last_synced_state == {}
 
 
 def test_first_sync_always_passes(twin_syncer: TwinSyncer, mock_connector: MagicMock) -> None:
@@ -44,7 +44,7 @@ def test_first_sync_always_passes(twin_syncer: TwinSyncer, mock_connector: Magic
     synced = twin_syncer.sync_state(entity_id, "ph", 7.0, ts)
 
     assert synced is True
-    assert twin_syncer._state_cache[entity_id]["ph"] == 7.0
+    assert twin_syncer._last_synced_state[entity_id]["ph"] == 7.0
     mock_connector.update_node.assert_called_once()
 
     call_arg = mock_connector.update_node.call_args[0][0]
@@ -65,13 +65,13 @@ def test_throttling_logic(twin_syncer: TwinSyncer, mock_connector: MagicMock) ->
     synced = twin_syncer.sync_state(entity_id, "ph", 7.05, ts)
     assert synced is False
     mock_connector.update_node.assert_not_called()
-    assert twin_syncer._state_cache[entity_id]["ph"] == 7.0  # Cache should not update
+    assert twin_syncer._last_synced_state[entity_id]["ph"] == 7.0  # Cache should not update
 
     # 8.0 is > 10% change from 7.0 -> Should Sync
     synced = twin_syncer.sync_state(entity_id, "ph", 8.0, ts)
     assert synced is True
     mock_connector.update_node.assert_called_once()
-    assert twin_syncer._state_cache[entity_id]["ph"] == 8.0  # Cache updates
+    assert twin_syncer._last_synced_state[entity_id]["ph"] == 8.0  # Cache updates
 
 
 def test_zero_handling(twin_syncer: TwinSyncer) -> None:
@@ -144,7 +144,7 @@ def test_fact_rule_exception_handling(twin_syncer: TwinSyncer, mock_connector: M
 
 
 def test_should_sync_new_property(twin_syncer: TwinSyncer) -> None:
-    # Coverage for line 78: if property_name not in self._state_cache[entity_id]:
+    # Coverage for line 78: if property_name not in self._last_synced_state[entity_id]:
     entity_id = "Bio-1"
     ts = "ts"
 
@@ -176,18 +176,18 @@ def test_multiple_rules(twin_syncer: TwinSyncer, mock_connector: MagicMock) -> N
 
 
 def test_sync_cache_update_logic(twin_syncer: TwinSyncer) -> None:
-    # Coverage for line 119: if entity_id not in self._state_cache:
+    # Coverage for line 119: if entity_id not in self._last_synced_state:
     # This logic runs AFTER _should_sync returns True.
-    # _should_sync already populates _state_cache[entity_id] if it was missing (lines 65-66).
-    # So line 119 `if entity_id not in self._state_cache:` is theoretically unreachable
+    # _should_sync already populates _last_synced_state[entity_id] if it was missing (lines 65-66).
+    # So line 119 `if entity_id not in self._last_synced_state:` is theoretically unreachable
     # unless _should_sync behavior changes or threading race condition (which we don't test here).
     #
     # Let's verify line 65:
-    # if entity_id not in self._state_cache:
-    #    self._state_cache[entity_id] = {}
+    # if entity_id not in self._last_synced_state:
+    #    self._last_synced_state[entity_id] = {}
     #    return True
     #
-    # So when sync_state calls _should_sync, it ensures _state_cache[entity_id] exists.
+    # So when sync_state calls _should_sync, it ensures _last_synced_state[entity_id] exists.
     # Then sync_state continues to line 119.
     # Thus line 119 IS unreachable in single-threaded context if _should_sync works as expected.
     # This might be defensive coding that is untestable without mocking internal state mid-flight.
@@ -197,7 +197,7 @@ def test_sync_cache_update_logic(twin_syncer: TwinSyncer) -> None:
     #
     # Actually, look closely at line 66: it returns True.
     # So sync_state proceeds.
-    # But wait, line 118: `if entity_id not in self._state_cache:`
+    # But wait, line 118: `if entity_id not in self._last_synced_state:`
     # Since line 66 set it, it should be there.
     # BUT, what if `_should_sync` returns True because of the OTHER condition (threshold)?
     # Then `entity_id` is already in cache.
@@ -220,5 +220,5 @@ def test_sync_cache_update_logic(twin_syncer: TwinSyncer) -> None:
         # Then hits line 118: if "NewID" not in cache -> True -> enters 119
         twin_syncer.sync_state("NewID", "prop", 1.0, "ts")
 
-        assert "NewID" in twin_syncer._state_cache
-        assert twin_syncer._state_cache["NewID"]["prop"] == 1.0
+        assert "NewID" in twin_syncer._last_synced_state
+        assert twin_syncer._last_synced_state["NewID"]["prop"] == 1.0
