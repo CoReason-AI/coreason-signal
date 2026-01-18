@@ -134,10 +134,8 @@ class SignalFlightServer(flight.FlightServerBase):  # type: ignore[misc]
         # For now, we yield a single info if data exists.
         with self._lock:
             if self._buffer:
-                schema = self._buffer[0].schema
                 descriptor = flight.FlightDescriptor.for_path(b"sensor_stream")
-                endpoints = [flight.FlightEndpoint(b"sensor_stream", [self.location])]
-                yield flight.FlightInfo(schema, descriptor, endpoints, -1, -1)
+                yield self._create_flight_info(descriptor, self._buffer[0].schema)
 
     def get_flight_info(
         self, context: flight.ServerCallContext, descriptor: flight.FlightDescriptor
@@ -147,11 +145,16 @@ class SignalFlightServer(flight.FlightServerBase):  # type: ignore[misc]
         """
         with self._lock:
             if self._buffer:
-                schema = self._buffer[0].schema
-                endpoints = [flight.FlightEndpoint(b"sensor_stream", [self.location])]
-                return flight.FlightInfo(schema, descriptor, endpoints, -1, -1)
+                return self._create_flight_info(descriptor, self._buffer[0].schema)
             else:
                 raise flight.FlightUnavailableError("No data available")
+
+    def _create_flight_info(self, descriptor: flight.FlightDescriptor, schema: pa.Schema) -> flight.FlightInfo:
+        """
+        Helper to create a FlightInfo object.
+        """
+        endpoints = [flight.FlightEndpoint(b"sensor_stream", [self.location])]
+        return flight.FlightInfo(schema, descriptor, endpoints, -1, -1)
 
     def get_latest_data(self) -> List[pa.RecordBatch]:
         """
