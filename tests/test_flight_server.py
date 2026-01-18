@@ -46,7 +46,7 @@ def test_server_init(flight_server: SignalFlightServer) -> None:
 
 def test_do_put_and_get(flight_server: SignalFlightServer) -> None:
     """Test sending data via do_put and retrieving it via do_get and internal method."""
-    location = f"grpc://0.0.0.0:{flight_server.port}"
+    location = f"grpc://127.0.0.1:{flight_server.port}"
     client = flight.FlightClient(location)
 
     # Create dummy data
@@ -79,7 +79,7 @@ def test_buffer_rolling(flight_server: SignalFlightServer) -> None:
     # Re-init with small buffer for testing (hacky but effective for unit test)
     flight_server._buffer = flight_server._buffer.__class__(maxlen=2)
 
-    location = f"grpc://0.0.0.0:{flight_server.port}"
+    location = f"grpc://127.0.0.1:{flight_server.port}"
     client = flight.FlightClient(location)
 
     batch1 = pa.RecordBatch.from_arrays([pa.array([1])], names=["a"])
@@ -102,7 +102,7 @@ def test_buffer_rolling(flight_server: SignalFlightServer) -> None:
 
 def test_list_flights_and_info(flight_server: SignalFlightServer) -> None:
     """Test list_flights and get_flight_info."""
-    location = f"grpc://0.0.0.0:{flight_server.port}"
+    location = f"grpc://127.0.0.1:{flight_server.port}"
     client = flight.FlightClient(location)
 
     # Empty initially
@@ -128,7 +128,7 @@ def test_list_flights_and_info(flight_server: SignalFlightServer) -> None:
 
 def test_do_get_unavailable(flight_server: SignalFlightServer) -> None:
     """Test do_get raises unavailable if no data."""
-    location = f"grpc://0.0.0.0:{flight_server.port}"
+    location = f"grpc://127.0.0.1:{flight_server.port}"
     client = flight.FlightClient(location)
     ticket = flight.Ticket(b"stream")
 
