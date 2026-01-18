@@ -63,7 +63,7 @@ class SiLAGateway:
                 server_description=f"Coreason Signal Gateway for {self.device_def.driver_type}",
                 server_type="CoreasonGateway",
                 server_version="0.1.0",
-                port=self.port,
+                server_vendor_url="https://coreason.ai",
                 # ip=self.host # Note: sila2 lib might use 'ip' or 'address'. verify if possible.
                 # Assuming defaults or simple init for now.
             )
@@ -96,7 +96,9 @@ class SiLAGateway:
         logger.info("Starting SiLAGateway...")
         # Note: server.run() is usually blocking.
         # We wrap it or expect the caller to handle threading if needed.
-        self.server.run(block=False)
+        # SilaServer.start(address, port, certificate=None, private_key=None, ...)
+        # We assume host is a valid address string (e.g. 0.0.0.0 or ip)
+        self.server.start(address="0.0.0.0", port=self.port)
 
     def stop(self) -> None:
         """

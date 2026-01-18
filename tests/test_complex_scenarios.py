@@ -86,7 +86,7 @@ def test_sop_recovery_partial_data(mock_vector_store: MagicMock) -> None:
     reflex = engine.decide(event)
 
     assert reflex is not None
-    assert reflex.action_name == "NOTIFY"
+    assert reflex.action == "NOTIFY"
     assert "no specific reflex defined" in reflex.reasoning
     assert reflex.parameters["sop_id"] == "SOP-Minimal"
 
