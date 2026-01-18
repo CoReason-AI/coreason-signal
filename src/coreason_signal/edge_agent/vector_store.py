@@ -84,6 +84,7 @@ class LocalVectorStore:
                 "title": res["title"],
                 "content": res["content"],
                 "metadata": res["metadata"],
+                "associated_reflex": res.get("associated_reflex"),
             }
             sops.append(SOPDocument(**sop_data))
 
