@@ -87,3 +87,31 @@ class LogEvent(BaseModel):
     message: str = Field(..., description="The semantic log message, e.g., 'Vacuum Pressure Low'")
     raw_code: Optional[str] = Field(None, description="Original error code, e.g., 'ERR_0x4F'")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="Additional metadata")
+
+
+class SemanticFact(BaseModel):
+    """
+    Represents a derived semantic fact (Subject-Predicate-Object) for the Knowledge Graph.
+    e.g. (:Bioreactor)-[:STATE_CHANGE]->(Acidic_Stress)
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    subject: str = Field(..., description="The subject node ID, e.g., 'Bioreactor-01'")
+    predicate: str = Field(..., description="The relationship type, e.g., 'STATE_CHANGE'")
+    object: str = Field(..., description="The object node or value, e.g., 'Acidic_Stress'")
+
+
+class TwinUpdate(BaseModel):
+    """
+    Payload for updating the Digital Twin (Graph Nexus).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    entity_id: str = Field(..., description="ID of the entity being updated")
+    timestamp: str = Field(..., description="ISO 8601 Timestamp of the update")
+    properties: Dict[str, Any] = Field(default_factory=dict, description="Raw property updates, e.g., {'ph': 6.2}")
+    derived_facts: List[SemanticFact] = Field(
+        default_factory=list, description="List of semantic facts derived from the update"
+    )

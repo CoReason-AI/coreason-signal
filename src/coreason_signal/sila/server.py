@@ -13,6 +13,7 @@ from typing import Optional
 from sila2.server import SilaServer
 
 from coreason_signal.schemas import DeviceDefinition
+from coreason_signal.sila.features import FeatureRegistry
 from coreason_signal.utils.logger import logger
 
 # Default ports as per PRD/Architecture
@@ -75,10 +76,18 @@ class SiLAGateway:
         """
         for capability in self.device_def.capabilities:
             logger.info(f"Dynamically loading capability: {capability}")
-            # TODO: In the future, this will map strings to concrete Feature implementations.
-            # For now, we log the registration intention.
-            # e.g., self.server.add_feature(feature_implementation=...)
-            pass
+            try:
+                # 1. Create Feature Definition
+                feature_def = FeatureRegistry.create_feature(capability)
+
+                # 2. Create Implementation
+                impl = FeatureRegistry.create_implementation(self.server, capability)
+
+                # 3. Register with Server
+                self.server.set_feature_implementation(feature_def, impl)
+                logger.info(f"Successfully loaded capability: {capability}")
+            except Exception as e:
+                logger.error(f"Failed to load capability {capability}: {e}")
 
     def start(self) -> None:
         """
