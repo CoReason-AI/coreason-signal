@@ -60,7 +60,7 @@ def test_reactor_overheat_recovery_loop(
         content="If reactor temperature exceeds 100.0C, immediately engage emergency cooling loop.",
         metadata={"criticality": "high"},
         associated_reflex=AgentReflex(
-            action_name="ENGAGE_COOLING_LOOP",
+            action="ENGAGE_COOLING_LOOP",
             parameters={"flow_rate_lpm": 50.0, "override_safety": True},
             reasoning="SOP-999 mandates immediate cooling for temp > 100C",
         ),
@@ -110,6 +110,6 @@ def test_reactor_overheat_recovery_loop(
     # -------------------------------------------------------------------------
     assert reflex is not None, "Reflex Engine failed to produce a decision."
     # Check 1: Did we select the correct Action?
-    assert reflex.action_name == "ENGAGE_COOLING_LOOP", (
-        f"Incorrect action taken. Expected ENGAGE_COOLING_LOOP, got {reflex.action_name}"
+    assert reflex.action == "ENGAGE_COOLING_LOOP", (
+        f"Incorrect action taken. Expected ENGAGE_COOLING_LOOP, got {reflex.action}"
     )

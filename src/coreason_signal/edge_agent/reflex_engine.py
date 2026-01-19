@@ -72,7 +72,7 @@ class ReflexEngine:
 
         # If SOP has no specific reflex but was matched, default to NOTIFY
         return AgentReflex(
-            action_name="NOTIFY",
+            action="NOTIFY",
             parameters={"event_id": event.id, "sop_id": best_sop.id},
             reasoning=f"Matched SOP {best_sop.id} but no specific reflex defined.",
         )
@@ -96,7 +96,7 @@ class ReflexEngine:
                 ms_timeout = int(self.decision_timeout * 1000)
                 logger.critical(f"Reflex Engine Watchdog Triggered: Decision took >{ms_timeout}ms for event {event.id}")
                 return AgentReflex(
-                    action_name="PAUSE",
+                    action="PAUSE",
                     reasoning=f"Watchdog Timeout > {ms_timeout}ms",
                     parameters={"event_id": event.id},
                 )

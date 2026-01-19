@@ -63,7 +63,7 @@ def test_decide_no_sop_found(mock_vector_store: MagicMock) -> None:
 def test_decide_sop_found(mock_vector_store: MagicMock) -> None:
     engine = ReflexEngine(vector_store=mock_vector_store)
 
-    reflex_action = AgentReflex(action_name="RETRY", parameters={"speed": 0.5}, reasoning="SOP-104 matches error.")
+    reflex_action = AgentReflex(action="RETRY", parameters={"speed": 0.5}, reasoning="SOP-104 matches error.")
     sop = SOPDocument(
         id="SOP-104",
         title="Vacuum Error",
@@ -85,7 +85,7 @@ def test_decide_sop_found(mock_vector_store: MagicMock) -> None:
 
     assert reflex is not None
     assert isinstance(reflex, AgentReflex)
-    assert reflex.action_name == "RETRY"
+    assert reflex.action == "RETRY"
     # Note: reasoning might be from the SOP reflex or constructed.
     # Here we expect it to be the one from the SOP.
     assert reflex.reasoning == "SOP-104 matches error."
@@ -104,7 +104,7 @@ def test_decide_default_action(mock_vector_store: MagicMock) -> None:
 
     reflex = engine.decide(event)
     assert reflex is not None
-    assert reflex.action_name == "NOTIFY"
+    assert reflex.action == "NOTIFY"
     assert reflex.parameters["sop_id"] == "SOP-Generic"
 
 
@@ -147,8 +147,8 @@ def test_decide_multiple_sops_prioritization(mock_vector_store: MagicMock) -> No
     """Test that the engine picks the first SOP if multiple are returned."""
     engine = ReflexEngine(vector_store=mock_vector_store)
 
-    reflex_a = AgentReflex(action_name="A", reasoning="A")
-    reflex_b = AgentReflex(action_name="B", reasoning="B")
+    reflex_a = AgentReflex(action="A", reasoning="A")
+    reflex_b = AgentReflex(action="B", reasoning="B")
 
     sop1 = SOPDocument(id="SOP-A", title="A", content="A", associated_reflex=reflex_a)
     sop2 = SOPDocument(id="SOP-B", title="B", content="B", associated_reflex=reflex_b)
@@ -166,7 +166,7 @@ def test_decide_multiple_sops_prioritization(mock_vector_store: MagicMock) -> No
 
     reflex = engine.decide(event)
     assert reflex is not None
-    assert reflex.action_name == "A"
+    assert reflex.action == "A"
 
 
 def test_decide_watchdog_timeout(mock_vector_store: MagicMock) -> None:
@@ -193,7 +193,7 @@ def test_decide_watchdog_timeout(mock_vector_store: MagicMock) -> None:
         assert duration < 0.4
 
         assert reflex is not None
-        assert reflex.action_name == "PAUSE"
+        assert reflex.action == "PAUSE"
         assert reflex.reasoning == "Watchdog Timeout > 200ms"
         assert reflex.parameters["event_id"] == "evt-timeout"
 
