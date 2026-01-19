@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
 
 class DeviceDefinition(BaseModel):
@@ -26,21 +26,8 @@ class SoftSensorModel(BaseModel):
     id: str  # e.g., "model_titer_pred_v2"
     input_sensors: List[str]  # e.g., ["ph", "do2", "agitation"]
     target_variable: str  # e.g., "titer_g_L"
-    physics_constraints: Dict[str, str]  # e.g., {"min_titer": "0.0"}
+    physics_constraints: Dict[str, float]  # e.g., {"min_titer": 0.0}
     model_artifact: bytes  # The ONNX file
-
-    @field_validator("physics_constraints")
-    @classmethod
-    def validate_constraint_values(cls, v: Dict[str, str]) -> Dict[str, str]:
-        """
-        Ensures that all values in physics_constraints are parsable as numbers (float).
-        """
-        for key, value in v.items():
-            try:
-                float(value)
-            except ValueError:
-                raise ValueError(f"Constraint value for '{key}' must be a numeric string, got '{value}'") from None
-        return v
 
 
 class AgentReflex(BaseModel):
