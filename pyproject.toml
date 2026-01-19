@@ -7,6 +7,9 @@ license = "Prosperity-3.0"
 readme = "README.md"
 packages = [{include = "coreason_signal", from = "src"}]
 
+[tool.poetry.scripts]
+start = "coreason_signal.main:main"
+
 [tool.poetry.dependencies]
 python = ">=3.12, <3.14"
 loguru = "^0.7.2"
@@ -16,6 +19,7 @@ lancedb = "^0.26.1"
 fastembed = "^0.7.4"
 onnxruntime = "^1.23.2"
 pyarrow = "^22.0.0"
+pydantic-settings = "^2.12.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"

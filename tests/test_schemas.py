@@ -84,10 +84,10 @@ def test_log_event_valid() -> None:
 def test_agent_reflex_valid() -> None:
     """Test creating a valid AgentReflex."""
     reflex = AgentReflex(
-        action_name="RETRY",
+        action="RETRY",
         parameters={"speed": 0.5},
         reasoning="SOP-104 matches error.",
     )
-    assert reflex.action_name == "RETRY"
+    assert reflex.action == "RETRY"
     assert reflex.parameters["speed"] == 0.5
     assert reflex.reasoning == "SOP-104 matches error."

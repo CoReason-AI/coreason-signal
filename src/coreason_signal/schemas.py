@@ -50,7 +50,7 @@ class AgentReflex(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    action_name: str = Field(..., min_length=1, description="Name of the action, e.g., 'Aspirate'")
+    action: str = Field(..., min_length=1, description="Name of the action, e.g., 'Aspirate'")
     parameters: Dict[str, Any] = Field(
         default_factory=dict, description="Parameters for the action, e.g., {'speed': 0.5}"
     )

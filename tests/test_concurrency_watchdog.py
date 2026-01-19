@@ -47,7 +47,7 @@ def test_thundering_herd_timeout(mock_vector_store: MagicMock) -> None:
     engine = ReflexEngine(vector_store=mock_vector_store, decision_timeout=1.0)
 
     # Mock return value for success
-    success_reflex = AgentReflex(action_name="SUCCESS", reasoning="OK")
+    success_reflex = AgentReflex(action="SUCCESS", reasoning="OK")
 
     # Define a side effect that sleeps 0.6s then returns success
     # 0.6s < 1.0s (Req 1 Success)
@@ -85,16 +85,16 @@ def test_thundering_herd_timeout(mock_vector_store: MagicMock) -> None:
         # Analysis
         # Request 1 should succeed
         assert results[0] is not None
-        assert results[0].action_name == "SUCCESS"
+        assert results[0].action == "SUCCESS"
 
         # Request 2 should be PAUSE (Timeout)
         assert results[1] is not None
-        assert results[1].action_name == "PAUSE"
+        assert results[1].action == "PAUSE"
         assert "Watchdog Timeout" in results[1].reasoning
 
         # Request 3 should be PAUSE (Timeout)
         assert results[2] is not None
-        assert results[2].action_name == "PAUSE"
+        assert results[2].action == "PAUSE"
 
 
 def test_recovery_after_congestion(mock_vector_store: MagicMock) -> None:
@@ -103,7 +103,7 @@ def test_recovery_after_congestion(mock_vector_store: MagicMock) -> None:
     """
     # Use default 200ms timeout for this test, but adjust logic to be robust
     engine = ReflexEngine(vector_store=mock_vector_store)
-    success_reflex = AgentReflex(action_name="SUCCESS", reasoning="OK")
+    success_reflex = AgentReflex(action="SUCCESS", reasoning="OK")
 
     # Logic: 1st call is slow (0.3s > 0.2s), subsequent calls are fast
     call_count = 0
@@ -122,7 +122,7 @@ def test_recovery_after_congestion(mock_vector_store: MagicMock) -> None:
         evt1 = LogEvent(id="1", timestamp="", level="ERROR", source="t", message="m")
         res1 = engine.decide(evt1)
         assert res1 is not None
-        assert res1.action_name == "PAUSE"
+        assert res1.action == "PAUSE"
 
         # Wait for the background task to clear (0.3s sleep + overhead)
         time.sleep(0.4)
@@ -133,4 +133,4 @@ def test_recovery_after_congestion(mock_vector_store: MagicMock) -> None:
 
         # Should succeed now
         assert res2 is not None
-        assert res2.action_name == "SUCCESS"
+        assert res2.action == "SUCCESS"
