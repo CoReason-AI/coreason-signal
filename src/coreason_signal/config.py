@@ -8,6 +8,8 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_signal
 
+"""Configuration management for Coreason Signal."""
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

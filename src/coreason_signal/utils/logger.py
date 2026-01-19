@@ -8,6 +8,8 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_signal
 
+"""Logging configuration for Coreason Signal."""
+
 import sys
 from pathlib import Path
 

@@ -9,7 +9,9 @@
 # Source Code: https://github.com/CoReason-AI/coreason_signal
 
 """
-coreason-signal
+coreason-signal package.
+
+The Edge Intelligence Gateway for the CoReason ecosystem.
 """
 
 __version__ = "0.1.0"
