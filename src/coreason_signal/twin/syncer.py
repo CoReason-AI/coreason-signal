@@ -18,21 +18,26 @@ from coreason_signal.utils.logger import logger
 
 
 class GraphConnector(Protocol):
-    """
-    Protocol for the external Graph Nexus connector.
-    """
+    """Protocol for the external Graph Nexus connector."""
 
     def update_node(self, update: TwinUpdate) -> None:
-        """
-        Send a TwinUpdate to the Graph Nexus.
+        """Send a TwinUpdate to the Graph Nexus.
+
+        Args:
+            update (TwinUpdate): The update payload.
         """
         ...
 
 
 class TwinSyncer:
-    """
-    Synchronizes local state with the Digital Twin (Graph Nexus).
-    Implements Delta Throttling and Fact Promotion.
+    """Synchronizes local state with the Digital Twin (Graph Nexus).
+
+    Implements Delta Throttling to reduce network traffic and Fact Promotion
+    to derive semantic insights from raw data.
+
+    Attributes:
+        connector (GraphConnector): Interface to the Graph Nexus.
+        default_sigma_threshold (float): Default relative change required to trigger an update.
     """
 
     def __init__(
@@ -40,12 +45,11 @@ class TwinSyncer:
         connector: GraphConnector,
         default_sigma_threshold: float = 0.05,
     ) -> None:
-        """
-        Initialize the Twin Syncer.
+        """Initialize the Twin Syncer.
 
         Args:
-            connector: Interface to the Graph Nexus.
-            default_sigma_threshold: Default relative change required to trigger an update (0.05 = 5%).
+            connector (GraphConnector): Interface to the Graph Nexus.
+            default_sigma_threshold (float): Default relative change required to trigger an update (0.05 = 5%).
         """
         self.connector = connector
         self.default_sigma_threshold = default_sigma_threshold
@@ -58,12 +62,11 @@ class TwinSyncer:
         self._fact_rules: Dict[str, List[Callable[[str, Any], Optional[SemanticFact]]]] = defaultdict(list)
 
     def register_fact_rule(self, property_name: str, rule: Callable[[str, Any], Optional[SemanticFact]]) -> None:
-        """
-        Register a rule to derive semantic facts from a property.
+        """Register a rule to derive semantic facts from a property.
 
         Args:
-            property_name: The property to listen to (e.g., "ph").
-            rule: A function taking (entity_id, value) and returning a SemanticFact or None.
+            property_name (str): The property to listen to (e.g., "ph").
+            rule (Callable[[str, Any], Optional[SemanticFact]]): A function taking (entity_id, value) and returning a SemanticFact or None.
         """
         with self._lock:
             self._fact_rules[property_name].append(rule)
@@ -72,9 +75,18 @@ class TwinSyncer:
     def _is_significant_change(
         old_value: float, new_value: float, threshold: float, zero_tolerance: float = 1e-6
     ) -> bool:
-        """
-        Determine if the change between old and new values is significant.
-        Handles NaN, Inf, and Zero divisions.
+        """Determine if the change between old and new values is significant.
+
+        Handles NaN, Inf, and Zero divisions robustly.
+
+        Args:
+            old_value (float): The previous value.
+            new_value (float): The new value.
+            threshold (float): The percentage threshold for change.
+            zero_tolerance (float): Small epsilon to handle near-zero values.
+
+        Returns:
+            bool: True if the change is significant, False otherwise.
         """
         # 1. NaN/Inf handling
         if math.isnan(new_value) or math.isinf(new_value):
@@ -92,9 +104,18 @@ class TwinSyncer:
         return delta >= threshold
 
     def _should_sync(self, entity_id: str, property_name: str, value: float, threshold: float) -> bool:
-        """
-        Check if the value change is significant enough to sync.
-        Uses Delta Throttling.
+        """Check if the value change is significant enough to sync.
+
+        Uses Delta Throttling based on the last synced state.
+
+        Args:
+            entity_id (str): The entity ID.
+            property_name (str): The property name.
+            value (float): The current value.
+            threshold (float): The significance threshold.
+
+        Returns:
+            bool: True if sync is required.
         """
         # Always sync special values (NaN, Inf) if we don't know the state
         if math.isnan(value) or math.isinf(value):
@@ -118,18 +139,20 @@ class TwinSyncer:
         timestamp: str,
         threshold: Optional[float] = None,
     ) -> bool:
-        """
-        Attempt to sync a state change to the Digital Twin.
+        """Attempt to sync a state change to the Digital Twin.
+
+        Checks if the change is significant (throttling), derives semantic facts using
+        registered rules, and pushes the update via the connector.
 
         Args:
-            entity_id: The ID of the entity (e.g., "Bioreactor-01").
-            property_name: The property being updated (e.g., "ph").
-            value: The new value.
-            timestamp: ISO 8601 timestamp.
-            threshold: Optional override for sigma threshold.
+            entity_id (str): The ID of the entity (e.g., "Bioreactor-01").
+            property_name (str): The property being updated (e.g., "ph").
+            value (float): The new value.
+            timestamp (str): ISO 8601 timestamp.
+            threshold (Optional[float]): Optional override for sigma threshold.
 
         Returns:
-            True if sync occurred, False if throttled.
+            bool: True if sync occurred, False if throttled or failed.
         """
         eff_threshold = threshold if threshold is not None else self.default_sigma_threshold
 
@@ -178,8 +201,16 @@ class TwinSyncer:
         value: float,
         property_name: str,
     ) -> List[SemanticFact]:
-        """
-        Apply rules to derive facts.
+        """Apply rules to derive facts.
+
+        Args:
+            rules (List[Callable]): List of rule functions.
+            entity_id (str): The entity ID.
+            value (float): The current value.
+            property_name (str): The property name.
+
+        Returns:
+            List[SemanticFact]: A list of derived facts.
         """
         facts: List[SemanticFact] = []
         for rule in rules:

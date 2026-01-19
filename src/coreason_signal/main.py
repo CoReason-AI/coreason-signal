@@ -24,18 +24,38 @@ from coreason_signal.utils.logger import logger
 
 
 class Application:
-    """
-    Main application orchestrator for Coreason Signal.
-    Manages lifecycle of Edge Agent, SiLA Gateway, and other engines.
+    """Main application orchestrator for Coreason Signal.
+
+    Manages the lifecycle of the Edge Agent, SiLA Gateway, and other engines.
+    It serves as the central entry point that ties together the instrument control (SiLA),
+    data streaming (Arrow Flight), and local intelligence (Reflex Engine).
+
+    Attributes:
+        shutdown_event (threading.Event): Event to signal application shutdown.
+        gateway (Optional[SiLAGateway]): The SiLA 2 Gateway instance.
+        flight_server (Optional[SignalFlightServer]): The Arrow Flight Server instance.
+        reflex_engine (Optional[ReflexEngine]): The Reflex Engine for autonomous decision making.
     """
 
     def __init__(self) -> None:
+        """Initializes the Application state."""
         self.shutdown_event = threading.Event()
         self.gateway: Optional[SiLAGateway] = None
         self.flight_server: Optional[SignalFlightServer] = None
+        self.reflex_engine: Optional[ReflexEngine] = None
 
     def setup(self) -> None:
-        """Initialize all components."""
+        """Initialize all components of the application.
+
+        This method sets up the:
+        1. Local Vector Store for RAG.
+        2. Reflex Engine for decision logic.
+        3. SiLA Gateway for instrument control.
+        4. Arrow Flight Server for data streaming.
+
+        Raises:
+            Exception: If any component fails to initialize.
+        """
         logger.info("Initializing Coreason Signal...")
 
         # 1. Initialize RAG / Vector Store
@@ -66,15 +86,16 @@ class Application:
         logger.info("Initialization complete.")
 
     def run(self) -> None:
-        """Start all services and block until shutdown."""
+        """Start all services and block until shutdown.
+
+        Launches the SiLA Gateway and Flight Server in separate threads and
+        enters a main loop waiting for a shutdown signal.
+
+        Raises:
+            RuntimeError: If the application has not been initialized via setup().
+        """
         if not self.gateway or not self.flight_server:
             raise RuntimeError("Application not initialized. Call setup() first.")
-
-        # Start SiLA Server (it runs in its own thread/process usually, or we wrap it)
-        # The wrapper currently calls server.start() which might be blocking depending on sila2 impl.
-        # We assume for this orchestrator we want to control the main loop.
-        # If SiLAGateway.start() is blocking, we should run it in a thread.
-        # Based on previous review, SiLAGateway.start delegates to server.start().
 
         logger.info("Starting services...")
 
@@ -97,7 +118,14 @@ class Application:
             self.shutdown()
 
     def shutdown(self, signum: Optional[int] = None, frame: Optional[FrameType] = None) -> None:
-        """Graceful shutdown handler."""
+        """Graceful shutdown handler.
+
+        Stops the SiLA Gateway and Flight Server.
+
+        Args:
+            signum: The signal number (if called by signal handler).
+            frame: The current stack frame (if called by signal handler).
+        """
         logger.info("Shutdown signal received. Stopping services...")
         self.shutdown_event.set()
         if self.gateway:
@@ -108,7 +136,10 @@ class Application:
 
 
 def main() -> None:
-    """Entry point."""
+    """Entry point for the application.
+
+    Sets up signal handlers and runs the Application.
+    """
     app = Application()
 
     # Register signal handlers

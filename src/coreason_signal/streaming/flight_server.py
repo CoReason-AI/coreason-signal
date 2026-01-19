@@ -19,9 +19,10 @@ from coreason_signal.utils.logger import logger
 
 
 class SignalFlightServer(flight.FlightServerBase):  # type: ignore[misc]
-    """
-    Apache Arrow Flight Server for high-frequency sensor data streaming.
+    """Apache Arrow Flight Server for high-frequency sensor data streaming.
+
     Buffers incoming data for consumption by the Soft Sensor Engine and Twin Syncer.
+    This sidecar service prevents the main control plane from being overwhelmed by high-volume data.
     """
 
     def __init__(
@@ -33,16 +34,15 @@ class SignalFlightServer(flight.FlightServerBase):  # type: ignore[misc]
         root_certificates: Optional[bytes] = None,
         middleware: Optional[Dict[str, Any]] = None,
     ):
-        """
-        Initialize the Flight Server.
+        """Initialize the Flight Server.
 
         Args:
-            host: Host to bind to.
-            port: Port to bind to.
-            buffer_size: Max number of record batches to keep in memory.
-            verify_client: Whether to enable mTLS client verification (default False for internal sidecar).
-            root_certificates: PEM encoded root certificates for TLS.
-            middleware: Middleware dictionary.
+            host (str): Host to bind to.
+            port (int): Port to bind to.
+            buffer_size (int): Max number of record batches to keep in memory.
+            verify_client (bool): Whether to enable mTLS client verification (default False for internal sidecar).
+            root_certificates (Optional[bytes]): PEM encoded root certificates for TLS.
+            middleware (Optional[Dict[str, Any]]): Middleware dictionary.
         """
         location = f"grpc://{host}:{port}"
         super().__init__(
@@ -63,9 +63,15 @@ class SignalFlightServer(flight.FlightServerBase):  # type: ignore[misc]
         reader: flight.FlightMetadataReader,
         writer: flight.FlightMetadataWriter,
     ) -> None:
-        """
-        Handle incoming data streams.
-        Expects a stream of RecordBatches from the client.
+        """Handle incoming data streams.
+
+        Expects a stream of RecordBatches from the client and appends them to the internal buffer.
+
+        Args:
+            context (flight.ServerCallContext): Call context.
+            descriptor (flight.FlightDescriptor): Flight descriptor.
+            reader (flight.FlightMetadataReader): Stream reader.
+            writer (flight.FlightMetadataWriter): Stream writer.
         """
         logger.debug(f"Received do_put request: {descriptor.path}")
 
@@ -92,8 +98,17 @@ class SignalFlightServer(flight.FlightServerBase):  # type: ignore[misc]
         context: flight.ServerCallContext,
         ticket: flight.Ticket,
     ) -> flight.GeneratorStream:
-        """
-        Retrieve buffered data.
+        """Retrieve buffered data.
+
+        Args:
+            context (flight.ServerCallContext): Call context.
+            ticket (flight.Ticket): Flight ticket identifying the data to retrieve.
+
+        Returns:
+            flight.GeneratorStream: A stream of record batches.
+
+        Raises:
+            flight.FlightUnavailableError: If no data is buffered.
         """
         key = ticket.ticket.decode("utf-8")
         logger.debug(f"Received do_get request for ticket: {key}")
@@ -118,8 +133,13 @@ class SignalFlightServer(flight.FlightServerBase):  # type: ignore[misc]
         return flight.GeneratorStream(schema, self._stream_generator(snapshot))
 
     def _stream_generator(self, snapshot: List[pa.RecordBatch]) -> Generator[pa.RecordBatch, None, None]:
-        """
-        Internal generator to yield batches from a snapshot.
+        """Internal generator to yield batches from a snapshot.
+
+        Args:
+            snapshot (List[pa.RecordBatch]): List of record batches.
+
+        Yields:
+            pa.RecordBatch: The record batches in the snapshot.
         """
         for batch in snapshot:
             yield batch
@@ -127,8 +147,14 @@ class SignalFlightServer(flight.FlightServerBase):  # type: ignore[misc]
     def list_flights(
         self, context: flight.ServerCallContext, criteria: bytes
     ) -> Generator[flight.FlightInfo, None, None]:
-        """
-        List available streams.
+        """List available streams.
+
+        Args:
+            context (flight.ServerCallContext): Call context.
+            criteria (bytes): Criteria for filtering streams.
+
+        Yields:
+            flight.FlightInfo: Information about available flights.
         """
         # Placeholder: In a real system, we'd track active streams.
         # For now, we yield a single info if data exists.
@@ -140,8 +166,17 @@ class SignalFlightServer(flight.FlightServerBase):  # type: ignore[misc]
     def get_flight_info(
         self, context: flight.ServerCallContext, descriptor: flight.FlightDescriptor
     ) -> flight.FlightInfo:
-        """
-        Get info for a specific stream.
+        """Get info for a specific stream.
+
+        Args:
+            context (flight.ServerCallContext): Call context.
+            descriptor (flight.FlightDescriptor): Flight descriptor.
+
+        Returns:
+            flight.FlightInfo: Information about the requested flight.
+
+        Raises:
+            flight.FlightUnavailableError: If no data is available.
         """
         with self._lock:
             if self._buffer:
@@ -150,15 +185,23 @@ class SignalFlightServer(flight.FlightServerBase):  # type: ignore[misc]
                 raise flight.FlightUnavailableError("No data available")
 
     def _create_flight_info(self, descriptor: flight.FlightDescriptor, schema: pa.Schema) -> flight.FlightInfo:
-        """
-        Helper to create a FlightInfo object.
+        """Helper to create a FlightInfo object.
+
+        Args:
+            descriptor (flight.FlightDescriptor): Flight descriptor.
+            schema (pa.Schema): Arrow schema.
+
+        Returns:
+            flight.FlightInfo: Constructed FlightInfo object.
         """
         endpoints = [flight.FlightEndpoint(b"sensor_stream", [self.location])]
         return flight.FlightInfo(schema, descriptor, endpoints, -1, -1)
 
     def get_latest_data(self) -> List[pa.RecordBatch]:
-        """
-        Internal method for the Soft Sensor / Syncer to access the latest buffer.
+        """Internal method for the Soft Sensor / Syncer to access the latest buffer.
+
+        Returns:
+            List[pa.RecordBatch]: A snapshot of the current buffer.
         """
         with self._lock:
             return list(self._buffer)

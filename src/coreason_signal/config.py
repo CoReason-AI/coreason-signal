@@ -12,9 +12,19 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):  # type: ignore[misc]
-    """
-    Centralized configuration for the Coreason Signal application.
-    Reads from environment variables (prefix 'SIGNAL_').
+    """Centralized configuration for the Coreason Signal application.
+
+    Reads configuration from environment variables prefixed with 'SIGNAL_'.
+    Also supports reading from a '.env' file.
+
+    Attributes:
+        LOG_LEVEL (str): Logging level (default: "INFO").
+        SILA_PORT (int): Port for the SiLA 2 Server (default: 50052).
+        ARROW_FLIGHT_PORT (int): Port for the Arrow Flight Server (default: 50055).
+        REFLEX_TIMEOUT (float): Timeout in seconds for the Reflex Engine decision (default: 0.2).
+        EMBEDDING_MODEL (str): Name of the embedding model for Vector Store (default: "BAAI/bge-small-en-v1.5").
+        VECTOR_STORE_PATH (str): Path to the LanceDB vector store (default: "memory://").
+        ONNX_PROVIDERS (list[str]): List of ONNX execution providers in priority order.
     """
 
     model_config = SettingsConfigDict(env_prefix="SIGNAL_", env_file=".env", env_file_encoding="utf-8", extra="ignore")

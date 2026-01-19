@@ -1,38 +1,65 @@
+# Copyright (c) 2025 CoReason, Inc.
+#
+# This software is proprietary and dual-licensed.
+# Licensed under the Prosperity Public License 3.0 (the "License").
+# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
+# For details, see the LICENSE file.
+# Commercial use beyond a 30-day trial requires a separate license.
+#
+# Source Code: https://github.com/CoReason-AI/coreason_signal
+
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
 
 class DeviceDefinition(BaseModel):
-    """
-    Hardware abstraction layer mapping for SiLA 2 and legacy instruments.
+    """Hardware abstraction layer mapping for SiLA 2 and legacy instruments.
+
+    Attributes:
+        id (str): Unique identifier for the device (e.g., "LiquidHandler-01").
+        driver_type (str): Type of driver to use (e.g., "SiLA2", "SerialWrapper").
+        endpoint (HttpUrl): Network endpoint of the device (e.g., "https://192.168.1.50:50052").
+        capabilities (List[str]): List of capabilities supported by the device.
+        edge_agent_model (str): Identifier for the edge agent model to use.
+        allowed_reflexes (List[str]): List of allowed reflex actions (e.g., ["RETRY", "PAUSE"]).
     """
 
-    id: str  # e.g., "LiquidHandler-01"
-    driver_type: str  # e.g., "SiLA2", "SerialWrapper", "VisionWrapper"
-    endpoint: HttpUrl  # e.g., "https://192.168.1.50:50052"
-    capabilities: List[str]  # e.g., ["Transfer", "Wash", "Heater"]
+    id: str
+    driver_type: str
+    endpoint: HttpUrl
+    capabilities: List[str]
 
     # Edge AI Config
-    edge_agent_model: str  # e.g., "phi-4-quantized.onnx"
-    allowed_reflexes: List[str]  # e.g., ["RETRY", "PAUSE", "ABORT"]
+    edge_agent_model: str
+    allowed_reflexes: List[str]
 
 
 class SoftSensorModel(BaseModel):
-    """
-    Configuration for physics-informed neural networks (PINNs) acting as virtual sensors.
+    """Configuration for physics-informed neural networks (PINNs) acting as virtual sensors.
+
+    Attributes:
+        id (str): Unique identifier for the sensor model.
+        input_sensors (List[str]): List of input sensor keys required by the model.
+        target_variable (str): The name of the output variable being predicted.
+        physics_constraints (Dict[str, float]): Constraints to apply to the output (e.g., {"min": 0.0}).
+        model_artifact (bytes): The binary content of the ONNX model file.
     """
 
-    id: str  # e.g., "model_titer_pred_v2"
-    input_sensors: List[str]  # e.g., ["ph", "do2", "agitation"]
-    target_variable: str  # e.g., "titer_g_L"
-    physics_constraints: Dict[str, float]  # e.g., {"min_titer": 0.0}
-    model_artifact: bytes  # The ONNX file
+    id: str
+    input_sensors: List[str]
+    target_variable: str
+    physics_constraints: Dict[str, float]
+    model_artifact: bytes
 
 
 class AgentReflex(BaseModel):
-    """
-    Schema for an autonomous action taken by the Edge Agent.
+    """Schema for an autonomous action taken by the Edge Agent.
+
+    Attributes:
+        action (str): The name of the action to take (e.g., "RETRY", "PAUSE").
+        parameters (Dict[str, Any]): Additional parameters for the action.
+        reasoning (str): Textual explanation for why this action was chosen.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -45,8 +72,14 @@ class AgentReflex(BaseModel):
 
 
 class SOPDocument(BaseModel):
-    """
-    Schema for a Standard Operating Procedure (SOP) document used for RAG.
+    """Schema for a Standard Operating Procedure (SOP) document used for RAG.
+
+    Attributes:
+        id (str): Unique identifier for the SOP.
+        title (str): Title of the SOP.
+        content (str): The text content used for semantic search.
+        metadata (Dict[str, Any]): Arbitrary metadata associated with the SOP.
+        associated_reflex (Optional[AgentReflex]): A pre-defined reflex action for this SOP.
     """
 
     model_config = ConfigDict(extra="ignore")
@@ -61,8 +94,16 @@ class SOPDocument(BaseModel):
 
 
 class LogEvent(BaseModel):
-    """
-    Schema for a log event that triggers the Edge Agent.
+    """Schema for a log event that triggers the Edge Agent.
+
+    Attributes:
+        id (str): Unique Event ID.
+        timestamp (str): ISO 8601 Timestamp of the event.
+        level (str): Log severity level (e.g., "INFO", "ERROR").
+        source (str): Identifier of the source component/instrument.
+        message (str): The main log message.
+        raw_code (Optional[str]): Original error code from the hardware, if available.
+        metadata (Dict[str, Any]): Additional context for the event.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -77,9 +118,14 @@ class LogEvent(BaseModel):
 
 
 class SemanticFact(BaseModel):
-    """
-    Represents a derived semantic fact (Subject-Predicate-Object) for the Knowledge Graph.
-    e.g. (:Bioreactor)-[:STATE_CHANGE]->(Acidic_Stress)
+    """Represents a derived semantic fact (Subject-Predicate-Object).
+
+    Used for constructing the Knowledge Graph.
+
+    Attributes:
+        subject (str): The subject node ID (e.g., 'Bioreactor-01').
+        predicate (str): The relationship type (e.g., 'STATE_CHANGE').
+        object (str): The object node or value (e.g., 'Acidic_Stress').
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -90,8 +136,13 @@ class SemanticFact(BaseModel):
 
 
 class TwinUpdate(BaseModel):
-    """
-    Payload for updating the Digital Twin (Graph Nexus).
+    """Payload for updating the Digital Twin (Graph Nexus).
+
+    Attributes:
+        entity_id (str): ID of the entity being updated.
+        timestamp (str): ISO 8601 Timestamp of the update.
+        properties (Dict[str, Any]): Dictionary of property updates.
+        derived_facts (List[SemanticFact]): List of facts derived from the update.
     """
 
     model_config = ConfigDict(extra="forbid")

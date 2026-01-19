@@ -8,17 +8,22 @@ from coreason_signal.utils.logger import logger
 
 
 class LocalVectorStore:
-    """
-    In-process vector store using LanceDB for Edge Agent RAG.
+    """In-process vector store using LanceDB for Edge Agent RAG.
+
+    Manages the storage and retrieval of Standard Operating Procedures (SOPs)
+    using semantic embeddings.
+
+    Attributes:
+        db_path (str): URI of the LanceDB database.
+        embedding_model_name (str): Name of the embedding model used.
     """
 
     def __init__(self, db_path: str = "memory://", embedding_model_name: str = "BAAI/bge-small-en-v1.5") -> None:
-        """
-        Initialize the local vector store.
+        """Initialize the local vector store.
 
         Args:
-            db_path: Path to the LanceDB database. Defaults to "memory://" for in-memory.
-            embedding_model_name: Name of the embedding model to use with FastEmbed.
+            db_path (str): Path to the LanceDB database. Defaults to "memory://" for in-memory.
+            embedding_model_name (str): Name of the embedding model to use with FastEmbed.
         """
         self.db_path = db_path
         self.embedding_model_name = embedding_model_name
@@ -27,11 +32,10 @@ class LocalVectorStore:
         self._embedding_model = TextEmbedding(model_name=self.embedding_model_name)
 
     def add_sops(self, sops: List[SOPDocument]) -> None:
-        """
-        Embed and store SOP documents.
+        """Embed and store SOP documents in the vector store.
 
         Args:
-            sops: List of SOPDocument objects to add.
+            sops (List[SOPDocument]): List of SOPDocument objects to add.
         """
         if not sops:
             return
@@ -56,15 +60,14 @@ class LocalVectorStore:
             self._db.create_table(self._table_name, data=data)
 
     def query(self, query_text: str, k: int = 3) -> List[SOPDocument]:
-        """
-        Semantic search for SOPs.
+        """Perform a semantic search for SOPs.
 
         Args:
-            query_text: The query string.
-            k: Number of results to return.
+            query_text (str): The query string (e.g., error message context).
+            k (int): Number of nearest neighbors to return.
 
         Returns:
-            List of SOPDocument objects matching the query.
+            List[SOPDocument]: List of SOPDocument objects matching the query.
         """
         try:
             table = self._db.open_table(self._table_name)
