@@ -8,6 +8,8 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_signal
 
+"""Main application entry point for Coreason Signal."""
+
 import signal
 import threading
 import time
