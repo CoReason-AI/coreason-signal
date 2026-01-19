@@ -31,5 +31,12 @@ class Settings(BaseSettings):  # type: ignore[misc]
     EMBEDDING_MODEL: str = "BAAI/bge-small-en-v1.5"
     VECTOR_STORE_PATH: str = "memory://"
 
+    # Soft Sensor / ONNX
+    ONNX_PROVIDERS: list[str] = [
+        "CUDAExecutionProvider",
+        "OpenVINOExecutionProvider",
+        "CPUExecutionProvider",
+    ]
+
 
 settings = Settings()

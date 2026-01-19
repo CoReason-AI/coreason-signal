@@ -38,7 +38,7 @@ def test_soft_sensor_constraints_edge_cases() -> None:
             physics_constraints={"val": ""},
             model_artifact=b"data",
         )
-    assert "must be a numeric string" in str(exc.value)
+    assert "Input should be a valid number" in str(exc.value)
 
     # 3. Malformed number should fail
     with pytest.raises(ValidationError) as exc:
@@ -49,7 +49,7 @@ def test_soft_sensor_constraints_edge_cases() -> None:
             physics_constraints={"val": "1.2.3.4"},
             model_artifact=b"data",
         )
-    assert "must be a numeric string" in str(exc.value)
+    assert "Input should be a valid number" in str(exc.value)
 
 
 def test_sop_document_complex_roundtrip() -> None:

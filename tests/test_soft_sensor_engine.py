@@ -15,7 +15,7 @@ def sample_model_config() -> SoftSensorModel:
         id="test_model",
         input_sensors=["temp", "ph"],
         target_variable="growth_rate",
-        physics_constraints={"min_growth": "0.0", "max_growth": "10.0"},
+        physics_constraints={"min_growth": 0.0, "max_growth": 10.0},
         model_artifact=b"fake_onnx_bytes",
     )
 
@@ -137,13 +137,13 @@ def test_init_failure(sample_model_config: SoftSensorModel) -> None:
 
 def test_invalid_constraint_parsing(mock_ort_session: Tuple[MagicMock, MagicMock]) -> None:
     # Test with config that has non-min/max or weird keys
-    # Schema validation ensures values are numeric strings, but keys are open strings.
+    # Schema validation ensures values are numbers, but keys are open strings.
 
     config = SoftSensorModel(
         id="test_model_2",
         input_sensors=["a"],
         target_variable="y",
-        physics_constraints={"other_param": "100.0", "some_key": "50.0"},
+        physics_constraints={"other_param": 100.0, "some_key": 50.0},
         model_artifact=b"bytes",
     )
 
@@ -156,7 +156,7 @@ def test_conflicting_constraints(mock_ort_session: Tuple[MagicMock, MagicMock]) 
         id="test_model_bad",
         input_sensors=["a"],
         target_variable="y",
-        physics_constraints={"min_y": "10.0", "max_y": "5.0"},  # Min > Max
+        physics_constraints={"min_y": 10.0, "max_y": 5.0},  # Min > Max
         model_artifact=b"bytes",
     )
     with pytest.raises(ValueError, match="Invalid constraints: min"):

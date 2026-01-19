@@ -41,27 +41,26 @@ def test_soft_sensor_model_valid() -> None:
         id="model_titer_v2",
         input_sensors=["ph", "do2"],
         target_variable="titer",
-        physics_constraints={"min": "0.0", "max": "10.5"},
+        physics_constraints={"min": 0.0, "max": 10.5},
         model_artifact=b"fake_onnx_bytes",
     )
     assert sensor.id == "model_titer_v2"
-    assert sensor.physics_constraints["min"] == "0.0"
+    assert sensor.physics_constraints["min"] == 0.0
     assert sensor.model_artifact == b"fake_onnx_bytes"
 
 
 def test_soft_sensor_model_invalid_constraint() -> None:
-    """Test that non-numeric constraint values raise a ValueError."""
+    """Test that non-numeric constraint values raise a ValidationError."""
     with pytest.raises(ValidationError) as excinfo:
         SoftSensorModel(
             id="model_bad_constraint",
             input_sensors=["ph"],
             target_variable="titer",
-            physics_constraints={"min": "zero"},  # Invalid
+            physics_constraints={"min": "zero"},  # Invalid: cannot parse to float
             model_artifact=b"bytes",
         )
-    # The custom validator raises a ValueError, which Pydantic wraps in a ValidationError
-    assert "must be a numeric string" in str(excinfo.value)
-    assert "zero" in str(excinfo.value)
+    # Pydantic raises a validation error for float parsing
+    assert "Input should be a valid number" in str(excinfo.value)
 
 
 def test_log_event_valid() -> None:

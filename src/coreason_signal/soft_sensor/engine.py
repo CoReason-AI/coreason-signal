@@ -13,6 +13,7 @@ from typing import Dict
 import numpy as np
 import onnxruntime as ort
 
+from coreason_signal.config import settings
 from coreason_signal.schemas import SoftSensorModel
 from coreason_signal.utils.logger import logger
 
@@ -39,25 +40,22 @@ class SoftSensorEngine:
     def _load_session(self) -> ort.InferenceSession:
         """
         Load the ONNX inference session from the model artifact bytes.
-        Detects available hardware acceleration (CUDA, OpenVINO) and prioritizes them.
+        Detects available hardware acceleration and prioritizes them based on configuration.
         """
         try:
-            available_providers = ort.get_available_providers()
-            logger.info(f"Available ONNX providers: {available_providers}")
+            available = set(ort.get_available_providers())
+            logger.info(f"Available ONNX providers: {available}")
 
-            # Prioritize Hardware Acceleration
-            prioritized_providers = []
-            if "CUDAExecutionProvider" in available_providers:
-                prioritized_providers.append("CUDAExecutionProvider")
-            if "OpenVINOExecutionProvider" in available_providers:
-                prioritized_providers.append("OpenVINOExecutionProvider")
+            # Intersect config preference with availability, preserving config order
+            selected_providers = [p for p in settings.ONNX_PROVIDERS if p in available]
 
-            # Always include CPU fallback
-            prioritized_providers.append("CPUExecutionProvider")
+            # Always ensure CPU fallback at the end
+            if "CPUExecutionProvider" not in selected_providers:
+                selected_providers.append("CPUExecutionProvider")
 
-            logger.info(f"Selected ONNX providers for {self.config.id}: {prioritized_providers}")
+            logger.info(f"Selected ONNX providers for {self.config.id}: {selected_providers}")
 
-            return ort.InferenceSession(self.config.model_artifact, providers=prioritized_providers)
+            return ort.InferenceSession(self.config.model_artifact, providers=selected_providers)
         except Exception as e:
             logger.error(f"Failed to load ONNX model for sensor {self.config.id}: {e}")
             raise RuntimeError(f"Failed to initialize inference session: {e}") from e
@@ -69,12 +67,10 @@ class SoftSensorEngine:
         """
         parsed: Dict[str, float] = {}
         for key, value in self.config.physics_constraints.items():
-            # Schema validation ensures value is a numeric string
-            val = float(value)
             if key.lower().startswith("min"):
-                parsed["min"] = val
+                parsed["min"] = value
             elif key.lower().startswith("max"):
-                parsed["max"] = val
+                parsed["max"] = value
 
         if "min" in parsed and "max" in parsed and parsed["min"] > parsed["max"]:
             raise ValueError(f"Invalid constraints: min ({parsed['min']}) > max ({parsed['max']})")
