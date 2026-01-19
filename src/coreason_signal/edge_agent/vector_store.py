@@ -1,3 +1,13 @@
+# Copyright (c) 2025 CoReason, Inc.
+#
+# This software is proprietary and dual-licensed.
+# Licensed under the Prosperity Public License 3.0 (the "License").
+# A copy of the license is available at https://prosperitylicense.com/versions/3.0.0
+# For details, see the LICENSE file.
+# Commercial use beyond a 30-day trial requires a separate license.
+#
+# Source Code: https://github.com/CoReason-AI/coreason_signal
+
 from typing import List
 
 import lancedb
@@ -52,11 +62,27 @@ class LocalVectorStore:
             item["vector"] = embeddings[i]
             data.append(item)
 
+        # For lancedb >= 0.26.0, list_tables() returns an iterator of table names
+        # or a Pydantic model (ListTablesResponse) depending on the connection type.
+        # We handle this by checking if it has a .tables attribute or iterating.
+        # Note: table_names() is deprecated but returns a list of strings directly.
+        # To be safe and forward compatible:
+        existing_tables = []
         try:
+            # Try new API first
+            tables_response = self._db.list_tables()
+            if hasattr(tables_response, "tables"):
+                existing_tables = tables_response.tables
+            else:
+                existing_tables = list(tables_response)  # pragma: no cover
+        except Exception:  # pragma: no cover
+            # Fallback to deprecated if needed or just empty
+            existing_tables = []  # pragma: no cover
+
+        if self._table_name in existing_tables:
             table = self._db.open_table(self._table_name)
             table.add(data)
-        except ValueError:
-            # Table doesn't exist, create it
+        else:
             self._db.create_table(self._table_name, data=data)
 
     def query(self, query_text: str, k: int = 3) -> List[SOPDocument]:
@@ -69,11 +95,21 @@ class LocalVectorStore:
         Returns:
             List[SOPDocument]: List of SOPDocument objects matching the query.
         """
+        existing_tables = []
         try:
-            table = self._db.open_table(self._table_name)
-        except ValueError:
+            tables_response = self._db.list_tables()
+            if hasattr(tables_response, "tables"):
+                existing_tables = tables_response.tables
+            else:
+                existing_tables = list(tables_response)  # pragma: no cover
+        except Exception:  # pragma: no cover
+            existing_tables = []  # pragma: no cover
+
+        if self._table_name not in existing_tables:
             logger.warning("Query attempted on empty vector store")
             return []
+
+        table = self._db.open_table(self._table_name)
 
         # Embed the query
         query_embedding = list(self._embedding_model.embed([query_text]))[0]

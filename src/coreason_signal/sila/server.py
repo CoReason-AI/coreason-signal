@@ -61,16 +61,12 @@ class SiLAGateway:
         if server_instance:
             self.server = server_instance
         else:
-            # We initialize the real SiLAServer here.
-            # In a real implementation, we would pass name, description, etc.
             self.server = SilaServer(
                 server_name=self.device_def.id,
                 server_description=f"Coreason Signal Gateway for {self.device_def.driver_type}",
                 server_type="CoreasonGateway",
                 server_version="0.1.0",
                 server_vendor_url="https://coreason.ai",
-                # ip=self.host # Note: sila2 lib might use 'ip' or 'address'. verify if possible.
-                # Assuming defaults or simple init for now.
             )
 
         self._load_capabilities()

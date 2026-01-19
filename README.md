@@ -1,12 +1,23 @@
 # coreason-signal
 
-**The Nervous System for the Self-Driving Lab.**
+**The Edge Intelligence Gateway for the CoReason Ecosystem.**
 
-`coreason-signal` is an edge AI application that orchestrates SiLA 2 compliant instruments, performs soft sensor inference using ONNX models, manages a local vector store for reflex decisions, and streams data via Apache Arrow Flight. It bridges the "Air Gap" between high-level cloud reasoning and the physical reality of the bench, transforming instruments from dumb peripherals into active participants.
-
-[![License](https://img.shields.io/badge/License-Prosperity%203.0-blue)](https://github.com/CoReason-AI/coreason_signal)
+[![License: Prosperity 3.0](https://img.shields.io/badge/license-Prosperity%203.0-blue)](https://prosperitylicense.com/versions/3.0.0)
 [![CI Status](https://github.com/CoReason-AI/coreason_signal/actions/workflows/ci.yml/badge.svg)](https://github.com/CoReason-AI/coreason_signal/actions)
-[![Code Style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/CoReason-AI/coreason_signal)
+[![Code Style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![Documentation](https://img.shields.io/badge/docs-product_requirements-blue)](docs/product_requirements.md)
+
+**coreason-signal** transforms laboratory instruments from passive data loggers into active participants. It acts as the "nervous system" of the Self-Driving Lab, bridging the gap between cloud-based reasoning and physical hardware.
+
+## Features
+
+- **Edge Agentic AI (Micro-Cortex):** Deploys Micro-LLMs locally to parse error logs, query local SOPs via RAG, and trigger autonomous recovery actions (e.g., retrying failed aspirations).
+- **Soft Sensing (Virtual Metrology):** Uses Physics-Informed Neural Networks (PINNs) to infer invisible biological states (like cell viability) from real-time physical sensor data.
+- **Protocol Polyglot:** Natively supports **SiLA 2** (Standard in Lab Automation) while wrapping legacy serial and analog instruments (via Computer Vision) into clean microservices.
+- **Live Digital Twin:** Syncs physical state to the CoReason Knowledge Graph with sub-second latency using delta updates.
+- **High-Throughput Streaming:** Leverages **Apache Arrow Flight** for efficient transmission of high-frequency waveform data.
+
+For detailed requirements and architecture, see [Product Requirements](docs/product_requirements.md).
 
 ## Installation
 
@@ -14,55 +25,37 @@
 pip install coreason-signal
 ```
 
-## Features
-
-*   **Universal Connectivity (`sila2`)**: Wraps hardware as **SiLA 2** (Standard in Lab Automation) microservices, creating a uniform, discoverable API surface for the entire lab.
-*   **Cognition at the Edge (`lancedb` + `fastembed`)**: Implements a "Reflex Arc" using a serverless vector store for **Local RAG (Retrieval-Augmented Generation)**. It queries Standard Operating Procedures (SOPs) to resolve errors locally without cloud dependency.
-*   **Virtual Metrology (`onnxruntime`)**: Runs Physics-Informed Neural Networks (PINNs) via **ONNX** to infer invisible biological insights (like cell viability) from raw sensor data in real-time.
-*   **Data Integrity & Streaming (`pydantic` + `pyarrow`)**: Enforces strict schemas for events/reflexes and streams high-frequency waveform data via **Apache Arrow Flight**, preventing control plane congestion.
-
 ## Usage
 
-Here is how to initialize and run the application as a gateway:
+To start the Edge Intelligence Gateway:
 
 ```python
 from coreason_signal.main import Application
+import signal
 
-# Initialize the Application
-# This boots up the SiLA Gateway, Reflex Engine, and Vector Store
+# Initialize the application
 app = Application()
-app.setup()
 
-# Start the application loop
-# It exposes hardware capabilities and runs the "Nervous System" in the background
+# Register signal handlers for graceful shutdown
+signal.signal(signal.SIGINT, app.shutdown)
+signal.signal(signal.SIGTERM, app.shutdown)
+
+# Setup and run
 try:
+    app.setup()
     app.run()
-except KeyboardInterrupt:
-    print("Shutting down coreason-signal...")
+except Exception as e:
+    print(f"Fatal error: {e}")
+    app.shutdown()
 ```
 
-### Reflex Engine Example
+Or via the command line interface (CLI):
 
-```python
-from coreason_signal.edge_agent.reflex_engine import ReflexEngine
-from coreason_signal.schemas import LogEvent
-
-# Initialize the engine
-# (Usually handled internally by Application, but can be used standalone)
-# engine = ReflexEngine(...)
-
-# Simulate an error event
-event = LogEvent(
-    id="evt_123",
-    timestamp="2023-10-27T10:00:00Z",
-    level="ERROR",
-    source="LiquidHandler-01",
-    message="Aspiration timeout: pressure sensor delta < threshold",
-    raw_code="ERR_VAC_04"
-)
-
-# The engine queries SOPs and returns a reflex
-# reflex = engine.decide(event)
-# if reflex:
-#     print(f"Action: {reflex.action}, Reasoning: {reflex.reasoning}")
+```bash
+poetry run start
 ```
+
+## License
+
+This project is licensed under the **Prosperity Public License 3.0**.
+See [LICENSE](LICENSE) for details.

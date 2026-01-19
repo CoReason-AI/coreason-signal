@@ -8,6 +8,7 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_signal
 
+"""Feature registry for dynamic SiLA 2 capability loading."""
 
 from sila2.framework import Feature
 from sila2.server import FeatureImplementationBase, SilaServer
