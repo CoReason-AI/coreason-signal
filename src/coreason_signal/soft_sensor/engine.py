@@ -39,10 +39,25 @@ class SoftSensorEngine:
     def _load_session(self) -> ort.InferenceSession:
         """
         Load the ONNX inference session from the model artifact bytes.
+        Detects available hardware acceleration (CUDA, OpenVINO) and prioritizes them.
         """
         try:
-            # explicit providers to ensure deterministic behavior (CPU)
-            return ort.InferenceSession(self.config.model_artifact, providers=["CPUExecutionProvider"])
+            available_providers = ort.get_available_providers()
+            logger.info(f"Available ONNX providers: {available_providers}")
+
+            # Prioritize Hardware Acceleration
+            prioritized_providers = []
+            if "CUDAExecutionProvider" in available_providers:
+                prioritized_providers.append("CUDAExecutionProvider")
+            if "OpenVINOExecutionProvider" in available_providers:
+                prioritized_providers.append("OpenVINOExecutionProvider")
+
+            # Always include CPU fallback
+            prioritized_providers.append("CPUExecutionProvider")
+
+            logger.info(f"Selected ONNX providers for {self.config.id}: {prioritized_providers}")
+
+            return ort.InferenceSession(self.config.model_artifact, providers=prioritized_providers)
         except Exception as e:
             logger.error(f"Failed to load ONNX model for sensor {self.config.id}: {e}")
             raise RuntimeError(f"Failed to initialize inference session: {e}") from e
