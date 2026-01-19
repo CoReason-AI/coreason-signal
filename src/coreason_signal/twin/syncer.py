@@ -66,7 +66,8 @@ class TwinSyncer:
 
         Args:
             property_name (str): The property to listen to (e.g., "ph").
-            rule (Callable[[str, Any], Optional[SemanticFact]]): A function taking (entity_id, value) and returning a SemanticFact or None.
+            rule (Callable[[str, Any], Optional[SemanticFact]]): A function taking (entity_id, value)
+                and returning a SemanticFact or None.
         """
         with self._lock:
             self._fact_rules[property_name].append(rule)

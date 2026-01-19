@@ -32,7 +32,8 @@ class SoftSensorEngine:
         """Initialize the Soft Sensor Engine.
 
         Args:
-            model_config (SoftSensorModel): The SoftSensorModel configuration containing the model artifact and metadata.
+            model_config (SoftSensorModel): The SoftSensorModel configuration containing
+                the model artifact and metadata.
         """
         self.config = model_config
         self._session = self._load_session()
