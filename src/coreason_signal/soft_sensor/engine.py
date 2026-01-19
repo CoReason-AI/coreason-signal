@@ -19,17 +19,21 @@ from coreason_signal.utils.logger import logger
 
 
 class SoftSensorEngine:
-    """
-    Engine for executing Soft Sensor models (PINNs) using ONNX Runtime.
-    Handles inference and physics constraint enforcement.
+    """Engine for executing Soft Sensor models (PINNs) using ONNX Runtime.
+
+    Handles inference and physics constraint enforcement. It dynamically selects
+    the best available hardware accelerator (CUDA, OpenVINO, CPU).
+
+    Attributes:
+        config (SoftSensorModel): The model configuration.
     """
 
     def __init__(self, model_config: SoftSensorModel):
-        """
-        Initialize the Soft Sensor Engine.
+        """Initialize the Soft Sensor Engine.
 
         Args:
-            model_config: The SoftSensorModel configuration containing the model artifact and metadata.
+            model_config (SoftSensorModel): The SoftSensorModel configuration containing
+                the model artifact and metadata.
         """
         self.config = model_config
         self._session = self._load_session()
@@ -38,9 +42,15 @@ class SoftSensorEngine:
         self._constraints = self._parse_constraints()
 
     def _load_session(self) -> ort.InferenceSession:
-        """
-        Load the ONNX inference session from the model artifact bytes.
+        """Load the ONNX inference session from the model artifact bytes.
+
         Detects available hardware acceleration and prioritizes them based on configuration.
+
+        Returns:
+            ort.InferenceSession: The initialized ONNX Runtime session.
+
+        Raises:
+            RuntimeError: If session initialization fails.
         """
         try:
             available = set(ort.get_available_providers())
@@ -61,9 +71,15 @@ class SoftSensorEngine:
             raise RuntimeError(f"Failed to initialize inference session: {e}") from e
 
     def _parse_constraints(self) -> Dict[str, float]:
-        """
-        Parse physics constraints into usable float values.
+        """Parse physics constraints into usable float values.
+
         Supports keys starting with 'min' (lower bound) and 'max' (upper bound).
+
+        Returns:
+            Dict[str, float]: Dictionary of parsed constraints (keys: 'min', 'max').
+
+        Raises:
+            ValueError: If min constraint is greater than max constraint.
         """
         parsed: Dict[str, float] = {}
         for key, value in self.config.physics_constraints.items():
@@ -78,14 +94,17 @@ class SoftSensorEngine:
         return parsed
 
     def infer(self, inputs: Dict[str, float]) -> Dict[str, float]:
-        """
-        Run inference on the provided inputs.
+        """Run inference on the provided inputs.
 
         Args:
-            inputs: Dictionary mapping sensor names to values.
+            inputs (Dict[str, float]): Dictionary mapping sensor names to values.
 
         Returns:
-            Dictionary containing the target variable and its predicted value.
+            Dict[str, float]: Dictionary containing the target variable and its predicted value.
+
+        Raises:
+            ValueError: If required input sensors are missing.
+            RuntimeError: If inference execution fails.
         """
         # 1. Validate inputs
         missing = [s for s in self.config.input_sensors if s not in inputs]
@@ -113,8 +132,13 @@ class SoftSensorEngine:
         return {self.config.target_variable: final_prediction}
 
     def _apply_constraints(self, value: float) -> float:
-        """
-        Apply min/max physics constraints to the prediction.
+        """Apply min/max physics constraints to the prediction.
+
+        Args:
+            value (float): The raw predicted value.
+
+        Returns:
+            float: The constrained value.
         """
         if "min" in self._constraints and value < self._constraints["min"]:
             logger.info(f"Constraint active: Clipped {value} to min {self._constraints['min']}")

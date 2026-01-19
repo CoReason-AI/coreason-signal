@@ -20,7 +20,12 @@ logger = _logger
 
 
 def setup_logger() -> None:
-    """Configures the application logger."""
+    """Configures the application logger.
+
+    Sets up:
+    1. A human-readable sink to stderr.
+    2. A structured JSON file sink with rotation and retention.
+    """
     # Remove default handler
     logger.remove()
 

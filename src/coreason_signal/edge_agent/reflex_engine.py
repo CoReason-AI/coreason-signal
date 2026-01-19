@@ -17,9 +17,14 @@ from coreason_signal.utils.logger import logger
 
 
 class ReflexEngine:
-    """
-    The Edge Agent's "Reflex Arc".
-    Handles RAG-based decision making by querying local SOPs.
+    """The Edge Agent's "Reflex Arc" for autonomous decision making.
+
+    It handles RAG-based decision making by querying local Standard Operating Procedures (SOPs)
+    stored in a vector database. It implements a "Dead Man's Switch" to ensure safety
+    by enforcing strict timeouts on decisions.
+
+    Attributes:
+        decision_timeout (float): Max time allowed for a decision before safety override.
     """
 
     def __init__(
@@ -27,12 +32,11 @@ class ReflexEngine:
         vector_store: LocalVectorStore,
         decision_timeout: float = 0.2,
     ):
-        """
-        Initialize the Reflex Engine.
+        """Initialize the Reflex Engine.
 
         Args:
-            vector_store: Injected LocalVectorStore instance.
-            decision_timeout: Time in seconds before the Dead Man's Switch triggers (default: 0.2s).
+            vector_store (LocalVectorStore): The vector store instance for retrieving SOPs.
+            decision_timeout (float): Time in seconds before the Dead Man's Switch triggers (default: 0.2s).
         """
         self._vector_store = vector_store
         self.decision_timeout = decision_timeout
@@ -40,8 +44,13 @@ class ReflexEngine:
         self._executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
     def _decide_logic(self, event: LogEvent) -> Optional[AgentReflex]:
-        """
-        Internal logic for decision making.
+        """Internal logic for decision making.
+
+        Args:
+            event (LogEvent): The log event to process.
+
+        Returns:
+            Optional[AgentReflex]: The determined reflex action, or None if no action needed.
         """
         # 1. Check if the event is an error.
         if event.level != "ERROR":
@@ -78,15 +87,18 @@ class ReflexEngine:
         )
 
     def decide(self, event: LogEvent) -> Optional[AgentReflex]:
-        """
-        Query the SOPs based on the log event and return a reflex action.
-        Enforces a 200ms timeout (Dead Man's Switch).
+        """Query the SOPs based on the log event and return a reflex action.
+
+        Enforces a strict timeout (Dead Man's Switch). If the decision logic takes longer
+        than `decision_timeout`, a PAUSE reflex is returned to ensure safety.
 
         Args:
-            event: The structured log event.
+            event (LogEvent): The structured log event.
 
         Returns:
-            The AgentReflex from the most relevant SOP, None, or a PAUSE reflex on timeout.
+            Optional[AgentReflex]: The AgentReflex from the most relevant SOP,
+            None if no relevant SOP found or not an error,
+            or a 'PAUSE' AgentReflex on timeout.
         """
         try:
             future = self._executor.submit(self._decide_logic, event)
