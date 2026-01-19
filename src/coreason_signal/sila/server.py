@@ -22,9 +22,15 @@ DEFAULT_ARROW_FLIGHT_PORT = 50055
 
 
 class SiLAGateway:
-    """
-    The Protocol Bridge / SiLA 2 Gateway.
+    """The Protocol Bridge / SiLA 2 Gateway.
+
     Wraps the SiLA 2 Server and dynamically loads features based on DeviceDefinition.
+    It acts as the primary interface for instrument control.
+
+    Attributes:
+        device_def (DeviceDefinition): The configuration for the device.
+        arrow_flight_port (int): Port for the associated Arrow Flight data stream.
+        server (SilaServer): The underlying SiLA 2 Server instance.
     """
 
     def __init__(
@@ -33,14 +39,13 @@ class SiLAGateway:
         arrow_flight_port: int = DEFAULT_ARROW_FLIGHT_PORT,
         server_instance: Optional[SilaServer] = None,
     ):
-        """
-        Initialize the SiLA Gateway.
+        """Initialize the SiLA Gateway.
 
         Args:
-            device_def: The DeviceDefinition configuration.
-            arrow_flight_port: The dedicated port for the sidecar Arrow Flight server.
-                               (Managed separately, stored here for discovery/metadata).
-            server_instance: Optional injected SiLAServer instance for testing.
+            device_def (DeviceDefinition): The DeviceDefinition configuration.
+            arrow_flight_port (int): The dedicated port for the sidecar Arrow Flight server.
+                                     (Managed separately, stored here for discovery/metadata).
+            server_instance (Optional[SilaServer]): Optional injected SiLAServer instance for testing.
         """
         self.device_def = device_def
         self.arrow_flight_port = arrow_flight_port
@@ -71,9 +76,7 @@ class SiLAGateway:
         self._load_capabilities()
 
     def _load_capabilities(self) -> None:
-        """
-        Dynamically generate and register SiLA features based on device capabilities.
-        """
+        """Dynamically generate and register SiLA features based on device capabilities."""
         for capability in self.device_def.capabilities:
             logger.info(f"Dynamically loading capability: {capability}")
             try:
@@ -90,8 +93,9 @@ class SiLAGateway:
                 logger.error(f"Failed to load capability {capability}: {e}")
 
     def start(self) -> None:
-        """
-        Start the SiLA 2 Server.
+        """Start the SiLA 2 Server.
+
+        This method starts the underlying SiLA server on the configured address and port.
         """
         logger.info("Starting SiLAGateway...")
         # Note: server.run() is usually blocking.
@@ -101,9 +105,7 @@ class SiLAGateway:
         self.server.start(address="0.0.0.0", port=self.port)
 
     def stop(self) -> None:
-        """
-        Stop the SiLA 2 Server.
-        """
+        """Stop the SiLA 2 Server."""
         logger.info("Stopping SiLAGateway...")
         if hasattr(self.server, "stop"):
             self.server.stop()
