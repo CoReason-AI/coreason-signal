@@ -8,9 +8,7 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_signal
 
-import threading
-import time
-from typing import Generator
+from typing import Generator, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -25,10 +23,13 @@ def mock_components() -> Generator[None, None, None]:
         patch("coreason_signal.main.LocalVectorStore"),
         patch("coreason_signal.main.ReflexEngine"),
         patch("coreason_signal.main.SiLAGateway") as mock_gateway,
+        patch("coreason_signal.main.SignalFlightServer") as mock_flight,
     ):
         # Mock instance
         mock_gateway.return_value.start = MagicMock()
         mock_gateway.return_value.stop = MagicMock()
+        mock_flight.return_value.serve = MagicMock()
+        mock_flight.return_value.shutdown = MagicMock()
         yield
 
 
@@ -39,33 +40,33 @@ def test_app_setup(mock_components: None) -> None:
 
     assert app.gateway is not None
     assert app.reflex_engine is not None
+    assert app.flight_server is not None
 
 
 def test_app_run_shutdown(mock_components: None) -> None:
-    """Test the run loop and graceful shutdown mechanism."""
+    """Test the run loop and graceful shutdown mechanism using synchronous execution."""
     app = Application()
     app.setup()
     assert app.gateway is not None
+    assert app.flight_server is not None
 
-    # Run application in a separate thread so we can trigger shutdown from test
-    run_thread = threading.Thread(target=app.run)
-    run_thread.start()
+    # Side effect for sleep: trigger shutdown to break the loop immediately
+    def trigger_shutdown(seconds: float) -> None:
+        app.shutdown()
 
-    # Wait briefly to let it start
-    time.sleep(0.1)
+    with patch("time.sleep", side_effect=trigger_shutdown):
+        # Run synchronously. The sleep call inside run() will trigger shutdown,
+        # causing the loop check to fail and exit.
+        app.run()
 
     # Verify gateway started
-    # We ignore type errors here because app.gateway is a Mock at runtime due to patching
-    app.gateway.start.assert_called()  # type: ignore[attr-defined]
+    cast(MagicMock, app.gateway.start).assert_called()
+    cast(MagicMock, app.flight_server.serve).assert_called()
 
-    # Trigger shutdown
-    app.shutdown()
-
-    # Join thread (it should exit after shutdown is set)
-    run_thread.join(timeout=2.0)
-
-    assert not run_thread.is_alive()
-    app.gateway.stop.assert_called()  # type: ignore[attr-defined]
+    # Verify shutdown was called and stopped services
+    assert app.shutdown_event.is_set()
+    cast(MagicMock, app.gateway.stop).assert_called()
+    cast(MagicMock, app.flight_server.shutdown).assert_called()
 
 
 def test_main_entry_point(mock_components: None) -> None:
@@ -92,6 +93,7 @@ def test_run_keyboard_interrupt(mock_components: None) -> None:
     """Test handling of KeyboardInterrupt during run loop."""
     app = Application()
     app.setup()
+    assert app.gateway is not None
 
     # Mock time.sleep to raise KeyboardInterrupt
     with patch("time.sleep", side_effect=KeyboardInterrupt):
@@ -99,9 +101,8 @@ def test_run_keyboard_interrupt(mock_components: None) -> None:
 
     # Verify shutdown was called
     assert app.shutdown_event.is_set()
-    assert app.gateway is not None
     # We ignore type errors here because app.gateway is a Mock at runtime due to patching
-    app.gateway.stop.assert_called()  # type: ignore[attr-defined]
+    cast(MagicMock, app.gateway.stop).assert_called()
 
 
 def test_main_exception_handling(mock_components: None) -> None:

@@ -19,6 +19,7 @@ from coreason_signal.edge_agent.reflex_engine import ReflexEngine
 from coreason_signal.edge_agent.vector_store import LocalVectorStore
 from coreason_signal.schemas import DeviceDefinition
 from coreason_signal.sila.server import SiLAGateway
+from coreason_signal.streaming.flight_server import SignalFlightServer
 from coreason_signal.utils.logger import logger
 
 
@@ -31,6 +32,7 @@ class Application:
     def __init__(self) -> None:
         self.shutdown_event = threading.Event()
         self.gateway: Optional[SiLAGateway] = None
+        self.flight_server: Optional[SignalFlightServer] = None
 
     def setup(self) -> None:
         """Initialize all components."""
@@ -57,11 +59,15 @@ class Application:
 
         # 4. Initialize SiLA Gateway
         self.gateway = SiLAGateway(device_def=device_def, arrow_flight_port=settings.ARROW_FLIGHT_PORT)
+
+        # 5. Initialize Arrow Flight Server
+        self.flight_server = SignalFlightServer(port=settings.ARROW_FLIGHT_PORT)
+
         logger.info("Initialization complete.")
 
     def run(self) -> None:
         """Start all services and block until shutdown."""
-        if not self.gateway:
+        if not self.gateway or not self.flight_server:
             raise RuntimeError("Application not initialized. Call setup() first.")
 
         # Start SiLA Server (it runs in its own thread/process usually, or we wrap it)
@@ -72,11 +78,15 @@ class Application:
 
         logger.info("Starting services...")
 
-        # Run Gateway in a separate thread to allow main thread to handle signals
+        # Run Gateway in a separate thread
         gateway_thread = threading.Thread(target=self.gateway.start, daemon=True)
         gateway_thread.start()
 
-        logger.info(f"Coreason Signal running on port {settings.SILA_PORT}")
+        # Run Flight Server in a separate thread (serve() is blocking)
+        flight_thread = threading.Thread(target=self.flight_server.serve, daemon=True)
+        flight_thread.start()
+
+        logger.info(f"Coreason Signal running: SiLA@{settings.SILA_PORT}, Flight@{settings.ARROW_FLIGHT_PORT}")
 
         # Main Loop / Wait for shutdown
         try:
@@ -92,6 +102,8 @@ class Application:
         self.shutdown_event.set()
         if self.gateway:
             self.gateway.stop()
+        if self.flight_server:
+            self.flight_server.shutdown()
         logger.info("Services stopped. Exiting.")
 
 
@@ -113,5 +125,5 @@ def main() -> None:
         raise
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pragma: no cover
     main()
