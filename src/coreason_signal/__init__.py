@@ -18,6 +18,7 @@ __version__ = "0.1.0"
 __author__ = "Gowtham A Rao"
 __email__ = "gowtham.rao@coreason.ai"
 
-from .main import Application, main
+from .main import main
+from .service import Service, ServiceAsync
 
-__all__ = ["Application", "main"]
+__all__ = ["Service", "ServiceAsync", "main"]
