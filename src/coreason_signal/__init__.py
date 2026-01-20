@@ -9,13 +9,16 @@
 # Source Code: https://github.com/CoReason-AI/coreason_signal
 
 """
-coreason-signal
+coreason-signal package.
+
+The Edge Intelligence Gateway for the CoReason ecosystem.
 """
 
 __version__ = "0.1.0"
 __author__ = "Gowtham A Rao"
 __email__ = "gowtham.rao@coreason.ai"
 
-from .main import hello_world
+from .main import main
+from .service import Service, ServiceAsync
 
-__all__ = ["hello_world"]
+__all__ = ["Service", "ServiceAsync", "main"]
