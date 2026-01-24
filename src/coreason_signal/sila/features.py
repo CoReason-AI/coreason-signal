@@ -41,7 +41,7 @@ def generate_minimal_feature_xml(feature_name: str) -> str:
         str: XML string defining the SiLA feature.
     """
     return f"""<?xml version="1.0" encoding="utf-8" ?>
-<Feature SiLA2Version="1.0" FeatureVersion="1.0" MaturityLevel="Draft" Originator="com.coreason" Category="Dynamic"
+<Feature SiLA2Version="1.0" FeatureVersion="1.0" MaturityLevel="Draft" Originator="com.coreason" Category="dynamic"
          xmlns="http://www.sila-standard.org"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://www.sila-standard.org https://gitlab.com/SiLA2/sila_base/raw/master/schema/FeatureDefinition.xsd">
