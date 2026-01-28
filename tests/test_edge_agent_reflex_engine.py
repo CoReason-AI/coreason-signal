@@ -31,7 +31,6 @@ def test_reflex_engine_init_default() -> None:
         assert engine._vector_store == store_instance
 
 
-
 def test_decide_ignores_non_error(mock_vector_store: MagicMock, user_context: UserContext) -> None:
     engine = ReflexEngine(vector_store=mock_vector_store)
     event = LogEvent(

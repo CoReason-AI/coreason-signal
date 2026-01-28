@@ -15,7 +15,7 @@ Core service logic for Coreason Signal, implementing the Async-Native with Sync 
 import contextlib
 import threading
 from types import TracebackType
-from typing import Optional, Dict, Any, List
+from typing import Any, Dict, List, Optional
 
 import anyio
 import httpx

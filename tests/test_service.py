@@ -188,7 +188,7 @@ def test_service_ingest_and_query(mock_components: Dict[str, MagicMock], user_co
             "timestamp": "2023-01-01T00:00:00",
             "level": "INFO",
             "source": "test",
-            "message": "test msg"
+            "message": "test msg",
         }
         service.ingest_signal(data, user_context)
 
