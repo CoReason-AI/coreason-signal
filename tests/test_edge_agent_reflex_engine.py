@@ -48,7 +48,7 @@ def test_decide_missing_context(mock_vector_store: MagicMock) -> None:
     engine = ReflexEngine(vector_store=mock_vector_store)
     event = LogEvent(id="1", timestamp="", level="ERROR", source="t", message="m")
     with pytest.raises(ValueError, match="UserContext is required"):
-        engine.decide(event, None)
+        engine.decide(event, None)  # type: ignore[arg-type]
     mock_vector_store.query.assert_not_called()
 
 
