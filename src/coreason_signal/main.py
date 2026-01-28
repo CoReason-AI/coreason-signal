@@ -90,7 +90,9 @@ def main() -> None:
                 print(json.dumps(output, indent=2, default=str))
 
             elif args.command == "serve":
-                logger.info("Starting service with system context...", user_id=system_context.user_id.get_secret_value())
+                logger.info(
+                    "Starting service with system context...", user_id=system_context.user_id.get_secret_value()
+                )
                 svc.run_forever(context=system_context)
 
     except KeyboardInterrupt:

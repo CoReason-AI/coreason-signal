@@ -87,7 +87,9 @@ async def test_service_async_run_forever_cancellation(mock_components: Dict[str,
 
 
 @pytest.mark.asyncio  # type: ignore[misc]
-async def test_service_async_run_forever_context(mock_components: Dict[str, MagicMock], user_context: UserContext) -> None:
+async def test_service_async_run_forever_context(
+    mock_components: Dict[str, MagicMock], user_context: UserContext
+) -> None:
     """Test ServiceAsync run_forever with context."""
     service = ServiceAsync()
     await service.setup()
@@ -190,7 +192,8 @@ def test_service_ingest_and_query(mock_components: Dict[str, MagicMock], user_co
         service.ingest_signal(data, user_context)
 
         # Verify decide called
-        service._async_service.reflex_engine.decide.assert_called()
+        assert service._async_service.reflex_engine is not None
+        service._async_service.reflex_engine.decide.assert_called()  # type: ignore[attr-defined]
 
         # Test invalid ingest
         service.ingest_signal({"invalid": "data"}, user_context)
@@ -204,7 +207,8 @@ def test_service_ingest_and_query(mock_components: Dict[str, MagicMock], user_co
         # The mock_components yields a dict, but doesn't expose reflex_engine mock explicitly, only patches it.
         # However, we can inspect what was set.
         assert service._async_service.reflex_engine is not None
-        service._async_service.reflex_engine._vector_store.query.assert_called_with("fail", k=3)
+        # Use cast or assume standard mock behavior for dynamic attribute
+        service._async_service.reflex_engine._vector_store.query.assert_called_with("fail", k=3)  # type: ignore[attr-defined]
 
 
 def test_service_query_no_engine(mock_components: Dict[str, MagicMock], user_context: UserContext) -> None:
@@ -224,7 +228,10 @@ def test_service_identity_validation() -> None:
 
 
 def test_main_ingest(mock_components: Dict[str, MagicMock]) -> None:
-    with patch("sys.argv", ["main", "ingest", '{"key": "value"}']), patch("coreason_signal.main.Service") as MockService:
+    with (
+        patch("sys.argv", ["main", "ingest", '{"key": "value"}']),
+        patch("coreason_signal.main.Service") as MockService,
+    ):
         mock_instance = MockService.return_value
         mock_instance.__enter__.return_value = mock_instance
 
@@ -253,7 +260,7 @@ def test_main_query(mock_components: Dict[str, MagicMock]) -> None:
 
 
 def test_main_ingest_bad_json(mock_components: Dict[str, MagicMock]) -> None:
-    with patch("sys.argv", ["main", "ingest", "{bad_json"]), patch("coreason_signal.main.Service") as MockService:
+    with patch("sys.argv", ["main", "ingest", "{bad_json"]), patch("coreason_signal.main.Service"):
         with pytest.raises(SystemExit) as e:
             main()
         assert e.value.code == 1

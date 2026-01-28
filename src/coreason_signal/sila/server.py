@@ -117,4 +117,6 @@ class SiLAGateway:
         if context is None:
             raise ValueError("UserContext is required.")
 
-        logger.info("Handling SiLA request", user_id=context.user_id.get_secret_value(), payload_type=type(payload).__name__)
+        logger.info(
+            "Handling SiLA request", user_id=context.user_id.get_secret_value(), payload_type=type(payload).__name__
+        )
