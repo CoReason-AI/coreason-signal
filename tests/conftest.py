@@ -1,3 +1,9 @@
+import os
+import sys
+
+# Ensure local mock libs are available for tests if real package is missing
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "libs")))
+
 import pytest
 from coreason_identity.models import UserContext
 from coreason_identity.types import SecretStr
