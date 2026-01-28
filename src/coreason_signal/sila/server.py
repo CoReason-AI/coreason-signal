@@ -66,7 +66,7 @@ class SiLAGateway:
                 server_name=self.device_def.id,
                 server_description=f"Coreason Signal Gateway for {self.device_def.driver_type}",
                 server_type="CoreasonGateway",
-                server_version="0.2.0",
+                server_version="0.3.0",
                 server_vendor_url="https://coreason.ai",
             )
 
