@@ -11,6 +11,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from coreason_identity.models import UserContext
 from pydantic import HttpUrl
 
 from coreason_signal.schemas import DeviceDefinition
@@ -113,3 +114,18 @@ def test_sila_gateway_custom_arrow_port(mock_device_def: DeviceDefinition) -> No
         with patch("coreason_signal.sila.server.FeatureRegistry"):
             gateway = SiLAGateway(device_def=mock_device_def, arrow_flight_port=9999)
             assert gateway.arrow_flight_port == 9999
+
+
+def test_sila_gateway_handle_request(mock_device_def: DeviceDefinition, user_context: UserContext) -> None:
+    with patch("coreason_signal.sila.server.SilaServer"), patch("coreason_signal.sila.server.FeatureRegistry"):
+        gateway = SiLAGateway(device_def=mock_device_def)
+        payload = {"cmd": "START"}
+        gateway.handle_request(payload, user_context)
+        # Verify no error
+
+
+def test_sila_gateway_handle_request_validation(mock_device_def: DeviceDefinition) -> None:
+    with patch("coreason_signal.sila.server.SilaServer"), patch("coreason_signal.sila.server.FeatureRegistry"):
+        gateway = SiLAGateway(device_def=mock_device_def)
+        with pytest.raises(ValueError, match="UserContext is required"):
+            gateway.handle_request({}, None)  # type: ignore[arg-type]

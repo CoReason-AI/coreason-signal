@@ -3,6 +3,7 @@ import time
 from unittest.mock import MagicMock, patch
 
 import pytest
+from coreason_identity.models import UserContext
 
 from coreason_signal.edge_agent.reflex_engine import ReflexEngine
 from coreason_signal.schemas import AgentReflex, LogEvent, SOPDocument
@@ -30,7 +31,7 @@ def test_reflex_engine_init_default() -> None:
         assert engine._vector_store == store_instance
 
 
-def test_decide_ignores_non_error(mock_vector_store: MagicMock) -> None:
+def test_decide_ignores_non_error(mock_vector_store: MagicMock, user_context: UserContext) -> None:
     engine = ReflexEngine(vector_store=mock_vector_store)
     event = LogEvent(
         id="evt-001",
@@ -39,12 +40,19 @@ def test_decide_ignores_non_error(mock_vector_store: MagicMock) -> None:
         source="test",
         message="Everything is fine",
     )
-    reflex = engine.decide(event)
+    reflex = engine.decide(event, user_context)
     assert reflex is None
+
+
+def test_decide_missing_context(mock_vector_store: MagicMock) -> None:
+    engine = ReflexEngine(vector_store=mock_vector_store)
+    event = LogEvent(id="1", timestamp="", level="ERROR", source="t", message="m")
+    with pytest.raises(ValueError, match="UserContext is required"):
+        engine.decide(event, None)  # type: ignore[arg-type]
     mock_vector_store.query.assert_not_called()
 
 
-def test_decide_no_sop_found(mock_vector_store: MagicMock) -> None:
+def test_decide_no_sop_found(mock_vector_store: MagicMock, user_context: UserContext) -> None:
     engine = ReflexEngine(vector_store=mock_vector_store)
     mock_vector_store.query.return_value = []
 
@@ -55,12 +63,12 @@ def test_decide_no_sop_found(mock_vector_store: MagicMock) -> None:
         source="test",
         message="Unknown error",
     )
-    reflex = engine.decide(event)
+    reflex = engine.decide(event, user_context)
     assert reflex is None
     mock_vector_store.query.assert_called_once_with("Unknown error", k=1)
 
 
-def test_decide_sop_found(mock_vector_store: MagicMock) -> None:
+def test_decide_sop_found(mock_vector_store: MagicMock, user_context: UserContext) -> None:
     engine = ReflexEngine(vector_store=mock_vector_store)
 
     reflex_action = AgentReflex(action="RETRY", parameters={"speed": 0.5}, reasoning="SOP-104 matches error.")
@@ -81,7 +89,7 @@ def test_decide_sop_found(mock_vector_store: MagicMock) -> None:
         message="ERR_VACUUM_LOW",
     )
 
-    reflex = engine.decide(event)
+    reflex = engine.decide(event, user_context)
 
     assert reflex is not None
     assert isinstance(reflex, AgentReflex)
@@ -91,7 +99,7 @@ def test_decide_sop_found(mock_vector_store: MagicMock) -> None:
     assert reflex.reasoning == "SOP-104 matches error."
 
 
-def test_decide_default_action(mock_vector_store: MagicMock) -> None:
+def test_decide_default_action(mock_vector_store: MagicMock, user_context: UserContext) -> None:
     engine = ReflexEngine(vector_store=mock_vector_store)
 
     # SOP without associated_reflex
@@ -102,13 +110,13 @@ def test_decide_default_action(mock_vector_store: MagicMock) -> None:
         id="evt-gen-1", timestamp=datetime.datetime.now().isoformat(), level="ERROR", source="test", message="Error"
     )
 
-    reflex = engine.decide(event)
+    reflex = engine.decide(event, user_context)
     assert reflex is not None
     assert reflex.action == "NOTIFY"
     assert reflex.parameters["sop_id"] == "SOP-Generic"
 
 
-def test_decide_vector_store_exception(mock_vector_store: MagicMock) -> None:
+def test_decide_vector_store_exception(mock_vector_store: MagicMock, user_context: UserContext) -> None:
     """Test robustness against vector store failures."""
     engine = ReflexEngine(vector_store=mock_vector_store)
     mock_vector_store.query.side_effect = RuntimeError("DB Connection Failed")
@@ -122,11 +130,11 @@ def test_decide_vector_store_exception(mock_vector_store: MagicMock) -> None:
     )
 
     # Should not raise exception, but log it and return None
-    reflex = engine.decide(event)
+    reflex = engine.decide(event, user_context)
     assert reflex is None
 
 
-def test_decide_empty_message(mock_vector_store: MagicMock) -> None:
+def test_decide_empty_message(mock_vector_store: MagicMock, user_context: UserContext) -> None:
     """Test handling of empty log messages."""
     engine = ReflexEngine(vector_store=mock_vector_store)
 
@@ -138,12 +146,12 @@ def test_decide_empty_message(mock_vector_store: MagicMock) -> None:
         message="   ",  # Whitespace only
     )
 
-    reflex = engine.decide(event)
+    reflex = engine.decide(event, user_context)
     assert reflex is None
     mock_vector_store.query.assert_not_called()
 
 
-def test_decide_multiple_sops_prioritization(mock_vector_store: MagicMock) -> None:
+def test_decide_multiple_sops_prioritization(mock_vector_store: MagicMock, user_context: UserContext) -> None:
     """Test that the engine picks the first SOP if multiple are returned."""
     engine = ReflexEngine(vector_store=mock_vector_store)
 
@@ -164,12 +172,12 @@ def test_decide_multiple_sops_prioritization(mock_vector_store: MagicMock) -> No
         message="Ambiguous error",
     )
 
-    reflex = engine.decide(event)
+    reflex = engine.decide(event, user_context)
     assert reflex is not None
     assert reflex.action == "A"
 
 
-def test_decide_watchdog_timeout(mock_vector_store: MagicMock) -> None:
+def test_decide_watchdog_timeout(mock_vector_store: MagicMock, user_context: UserContext) -> None:
     """Test that decide returns PAUSE if logic takes > 0.2s."""
     engine = ReflexEngine(vector_store=mock_vector_store)
 
@@ -185,7 +193,7 @@ def test_decide_watchdog_timeout(mock_vector_store: MagicMock) -> None:
         )
 
         start_time = time.time()
-        reflex = engine.decide(event)
+        reflex = engine.decide(event, user_context)
         duration = time.time() - start_time
 
         # If strict timeout works, duration should be ~0.2s + overhead.
@@ -198,7 +206,7 @@ def test_decide_watchdog_timeout(mock_vector_store: MagicMock) -> None:
         assert reflex.parameters["event_id"] == "evt-timeout"
 
 
-def test_decide_watchdog_internal_error(mock_vector_store: MagicMock) -> None:
+def test_decide_watchdog_internal_error(mock_vector_store: MagicMock, user_context: UserContext) -> None:
     """Test that decide catches internal thread errors."""
     engine = ReflexEngine(vector_store=mock_vector_store)
 
@@ -212,11 +220,11 @@ def test_decide_watchdog_internal_error(mock_vector_store: MagicMock) -> None:
             message="Crash me",
         )
 
-        reflex = engine.decide(event)
+        reflex = engine.decide(event, user_context)
         assert reflex is None
 
 
-def test_decide_executor_failure(mock_vector_store: MagicMock) -> None:
+def test_decide_executor_failure(mock_vector_store: MagicMock, user_context: UserContext) -> None:
     """Test that decide handles failures during task submission."""
     engine = ReflexEngine(vector_store=mock_vector_store)
 
@@ -232,5 +240,5 @@ def test_decide_executor_failure(mock_vector_store: MagicMock) -> None:
         message="Fail submission",
     )
 
-    reflex = engine.decide(event)
+    reflex = engine.decide(event, user_context)
     assert reflex is None

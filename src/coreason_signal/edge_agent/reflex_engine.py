@@ -11,6 +11,8 @@
 import concurrent.futures
 from typing import Optional
 
+from coreason_identity.models import UserContext
+
 from coreason_signal.edge_agent.vector_store import LocalVectorStore
 from coreason_signal.schemas import AgentReflex, LogEvent
 from coreason_signal.utils.logger import logger
@@ -86,7 +88,7 @@ class ReflexEngine:
             reasoning=f"Matched SOP {best_sop.id} but no specific reflex defined.",
         )
 
-    def decide(self, event: LogEvent) -> Optional[AgentReflex]:
+    def decide(self, event: LogEvent, context: UserContext) -> Optional[AgentReflex]:
         """Query the SOPs based on the log event and return a reflex action.
 
         Enforces a strict timeout (Dead Man's Switch). If the decision logic takes longer
@@ -94,12 +96,18 @@ class ReflexEngine:
 
         Args:
             event (LogEvent): The structured log event.
+            context (UserContext): The identity context.
 
         Returns:
             Optional[AgentReflex]: The AgentReflex from the most relevant SOP,
             None if no relevant SOP found or not an error,
             or a 'PAUSE' AgentReflex on timeout.
         """
+        if context is None:
+            raise ValueError("UserContext is required for Reflex Engine.")
+
+        logger.debug("Processing reflex event", user_id=context.user_id.get_secret_value(), event_type=event.level)
+
         try:
             future = self._executor.submit(self._decide_logic, event)
             try:
