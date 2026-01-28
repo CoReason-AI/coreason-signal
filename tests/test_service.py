@@ -194,7 +194,7 @@ def test_service_ingest_and_query(mock_components: Dict[str, MagicMock], user_co
 
         # Verify decide called
         assert service._async_service.reflex_engine is not None
-        service._async_service.reflex_engine.decide.assert_called()  # type: ignore[attr-defined]
+        service._async_service.reflex_engine.decide.assert_called()
 
         # Test invalid ingest
         service.ingest_signal({"invalid": "data"}, user_context)
@@ -209,7 +209,7 @@ def test_service_ingest_and_query(mock_components: Dict[str, MagicMock], user_co
         # However, we can inspect what was set.
         assert service._async_service.reflex_engine is not None
         # Use cast or assume standard mock behavior for dynamic attribute
-        service._async_service.reflex_engine._vector_store.query.assert_called_with("fail", k=3)  # type: ignore[attr-defined]
+        service._async_service.reflex_engine._vector_store.query.assert_called_with("fail", k=3)
 
 
 def test_service_query_no_engine(mock_components: Dict[str, MagicMock], user_context: UserContext) -> None:
