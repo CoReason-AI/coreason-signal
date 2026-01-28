@@ -91,7 +91,8 @@ def main() -> None:
 
             elif args.command == "serve":
                 logger.info(
-                    "Starting service with system context...", user_id=system_context.user_id.get_secret_value()
+                    "Starting service with system context...",
+                    user_id=system_context.user_id.get_secret_value(),
                 )
                 svc.run_forever(context=system_context)
 

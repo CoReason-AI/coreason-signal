@@ -1,10 +1,10 @@
+from coreason_identity.models import UserContext
 import datetime
 import time
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from coreason_identity.models import UserContext
 from coreason_signal.edge_agent.reflex_engine import ReflexEngine
 from coreason_signal.schemas import AgentReflex, LogEvent, SOPDocument
 
@@ -31,7 +31,6 @@ def test_reflex_engine_init_default() -> None:
         assert engine._vector_store == store_instance
 
 
-from coreason_identity.models import UserContext
 
 def test_decide_ignores_non_error(mock_vector_store: MagicMock, user_context: UserContext) -> None:
     engine = ReflexEngine(vector_store=mock_vector_store)

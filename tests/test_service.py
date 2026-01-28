@@ -88,7 +88,8 @@ async def test_service_async_run_forever_cancellation(mock_components: Dict[str,
 
 @pytest.mark.asyncio  # type: ignore[misc]
 async def test_service_async_run_forever_context(
-    mock_components: Dict[str, MagicMock], user_context: UserContext
+    mock_components: Dict[str, MagicMock],
+    user_context: UserContext,
 ) -> None:
     """Test ServiceAsync run_forever with context."""
     service = ServiceAsync()
