@@ -8,10 +8,10 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_signal
 
-from typing import Optional, Any
+from typing import Any, Optional
 
-from sila2.server import SilaServer
 from coreason_identity.models import UserContext
+from sila2.server import SilaServer
 
 from coreason_signal.schemas import DeviceDefinition
 from coreason_signal.sila.features import FeatureRegistry

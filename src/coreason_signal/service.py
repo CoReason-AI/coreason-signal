@@ -19,8 +19,8 @@ from typing import Optional, Dict, Any, List
 
 import anyio
 import httpx
-
 from coreason_identity.models import UserContext
+
 from coreason_signal.config import settings
 from coreason_signal.edge_agent.reflex_engine import ReflexEngine
 from coreason_signal.edge_agent.vector_store import LocalVectorStore

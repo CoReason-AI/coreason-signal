@@ -19,6 +19,7 @@ from typing import Optional
 
 from coreason_identity.models import UserContext
 from coreason_identity.types import SecretStr
+
 from coreason_signal.service import Service
 from coreason_signal.utils.logger import logger
 
@@ -55,11 +56,7 @@ def main() -> None:
     args = parser.parse_args()
 
     # Establish Identity Context
-    system_context = UserContext(
-        user_id=SecretStr("cli-user"),
-        roles=["system"],
-        metadata={"source": "cli"}
-    )
+    system_context = UserContext(user_id=SecretStr("cli-user"), roles=["system"], metadata={"source": "cli"})
 
     svc = Service()
 

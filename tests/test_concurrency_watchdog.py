@@ -15,8 +15,8 @@ from typing import List, Optional
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from coreason_identity.models import UserContext
+
 from coreason_signal.edge_agent.reflex_engine import ReflexEngine
 from coreason_signal.schemas import AgentReflex, LogEvent
 
