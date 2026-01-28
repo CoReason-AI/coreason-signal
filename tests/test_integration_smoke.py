@@ -104,7 +104,11 @@ def test_reactor_overheat_recovery_loop(
     # PHASE 4: Autonomous Decision (The "Reflex")
     # -------------------------------------------------------------------------
     # The engine must decide what to do based on the log message
-    reflex = reflex_engine.decide(log_event)
+    from coreason_identity.models import UserContext
+    from coreason_identity.types import SecretStr
+
+    ctx = UserContext(user_id=SecretStr("sys"), roles=["system"], metadata={})
+    reflex = reflex_engine.decide(log_event, ctx)
     # -------------------------------------------------------------------------
     # PHASE 5: Verification
     # -------------------------------------------------------------------------

@@ -29,7 +29,11 @@ def test_unicode_log_event(mock_vector_store: MagicMock) -> None:
         message=unicode_message,
     )
 
-    engine.decide(event)
+    from coreason_identity.models import UserContext
+    from coreason_identity.types import SecretStr
+
+    ctx = UserContext(user_id=SecretStr("sys"), roles=["system"], metadata={})
+    engine.decide(event, ctx)
 
     # Ensure the exact unicode string was passed to the query
     mock_vector_store.query.assert_called_once_with(unicode_message, k=1)
@@ -53,7 +57,11 @@ def test_long_log_message(mock_vector_store: MagicMock) -> None:
         message=long_message,
     )
 
-    engine.decide(event)
+    from coreason_identity.models import UserContext
+    from coreason_identity.types import SecretStr
+
+    ctx = UserContext(user_id=SecretStr("sys"), roles=["system"], metadata={})
+    engine.decide(event, ctx)
 
     mock_vector_store.query.assert_called_once_with(long_message, k=1)
 
@@ -83,7 +91,11 @@ def test_sop_recovery_partial_data(mock_vector_store: MagicMock) -> None:
         message="Vibration detected",
     )
 
-    reflex = engine.decide(event)
+    from coreason_identity.models import UserContext
+    from coreason_identity.types import SecretStr
+
+    ctx = UserContext(user_id=SecretStr("sys"), roles=["system"], metadata={})
+    reflex = engine.decide(event, ctx)
 
     assert reflex is not None
     assert reflex.action == "NOTIFY"
@@ -114,5 +126,9 @@ def test_vector_store_returns_invalid_type_graceful_fail(mock_vector_store: Magi
 
     # Updated expectation: The engine is now wrapped in a catch-all block for the thread.
     # It should catch the AttributeError raised when accessing .id on the dict, log it, and return None.
-    reflex = engine.decide(event)
+    from coreason_identity.models import UserContext
+    from coreason_identity.types import SecretStr
+
+    ctx = UserContext(user_id=SecretStr("sys"), roles=["system"], metadata={})
+    reflex = engine.decide(event, ctx)
     assert reflex is None
