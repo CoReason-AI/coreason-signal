@@ -16,6 +16,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from coreason_identity.models import UserContext
 from coreason_signal.edge_agent.reflex_engine import ReflexEngine
 from coreason_signal.schemas import AgentReflex, LogEvent
 
@@ -25,7 +26,7 @@ def mock_vector_store() -> MagicMock:
     return MagicMock()
 
 
-def test_thundering_herd_timeout(mock_vector_store: MagicMock) -> None:
+def test_thundering_herd_timeout(mock_vector_store: MagicMock, user_context: UserContext) -> None:
     """
     Test the 'Thundering Herd' scenario where multiple concurrent requests
     overwhelm the single-threaded ReflexEngine.
@@ -76,7 +77,7 @@ def test_thundering_herd_timeout(mock_vector_store: MagicMock) -> None:
         # Use an external executor to simulate concurrent clients
         with concurrent.futures.ThreadPoolExecutor(max_workers=3) as client_executor:
             # Launch all 3 simultaneously
-            futures = [client_executor.submit(engine.decide, evt) for evt in events]
+            futures = [client_executor.submit(engine.decide, evt, user_context) for evt in events]
 
             # Gather results
             for f in futures:
@@ -97,7 +98,7 @@ def test_thundering_herd_timeout(mock_vector_store: MagicMock) -> None:
         assert results[2].action == "PAUSE"
 
 
-def test_recovery_after_congestion(mock_vector_store: MagicMock) -> None:
+def test_recovery_after_congestion(mock_vector_store: MagicMock, user_context: UserContext) -> None:
     """
     Verify that the engine recovers after the congestion clears.
     """
@@ -120,7 +121,7 @@ def test_recovery_after_congestion(mock_vector_store: MagicMock) -> None:
     with patch.object(engine, "_decide_logic", side_effect=variable_logic):
         # 1. Slow call
         evt1 = LogEvent(id="1", timestamp="", level="ERROR", source="t", message="m")
-        res1 = engine.decide(evt1)
+        res1 = engine.decide(evt1, user_context)
         assert res1 is not None
         assert res1.action == "PAUSE"
 
@@ -129,7 +130,7 @@ def test_recovery_after_congestion(mock_vector_store: MagicMock) -> None:
 
         # 2. Fast call
         evt2 = LogEvent(id="2", timestamp="", level="ERROR", source="t", message="m")
-        res2 = engine.decide(evt2)
+        res2 = engine.decide(evt2, user_context)
 
         # Should succeed now
         assert res2 is not None

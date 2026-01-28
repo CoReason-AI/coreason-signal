@@ -8,9 +8,10 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_signal
 
-from typing import Optional
+from typing import Optional, Any
 
 from sila2.server import SilaServer
+from coreason_identity.models import UserContext
 
 from coreason_signal.schemas import DeviceDefinition
 from coreason_signal.sila.features import FeatureRegistry
@@ -105,3 +106,15 @@ class SiLAGateway:
         logger.info("Stopping SiLAGateway...")
         if hasattr(self.server, "stop"):
             self.server.stop()
+
+    def handle_request(self, payload: Any, context: UserContext) -> None:
+        """Handle an arbitrary request with identity context.
+
+        Args:
+            payload (Any): The request payload.
+            context (UserContext): The identity context.
+        """
+        if context is None:
+            raise ValueError("UserContext is required.")
+
+        logger.info("Handling SiLA request", user_id=context.user_id.get_secret_value(), payload_type=type(payload).__name__)

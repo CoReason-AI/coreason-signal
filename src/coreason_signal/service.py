@@ -15,15 +15,16 @@ Core service logic for Coreason Signal, implementing the Async-Native with Sync 
 import contextlib
 import threading
 from types import TracebackType
-from typing import Optional
+from typing import Optional, Dict, Any, List
 
 import anyio
 import httpx
 
+from coreason_identity.models import UserContext
 from coreason_signal.config import settings
 from coreason_signal.edge_agent.reflex_engine import ReflexEngine
 from coreason_signal.edge_agent.vector_store import LocalVectorStore
-from coreason_signal.schemas import DeviceDefinition
+from coreason_signal.schemas import DeviceDefinition, LogEvent
 from coreason_signal.sila.server import SiLAGateway
 from coreason_signal.streaming.flight_server import SignalFlightServer
 from coreason_signal.utils.logger import logger
@@ -133,8 +134,15 @@ class ServiceAsync:
 
         logger.info(f"Coreason Signal running: SiLA@{settings.SILA_PORT}, Flight@{settings.ARROW_FLIGHT_PORT}")
 
-    async def run_forever(self) -> None:
-        """Run the service until a cancellation signal is received."""
+    async def run_forever(self, context: Optional[UserContext] = None) -> None:
+        """Run the service until a cancellation signal is received.
+
+        Args:
+            context (Optional[UserContext]): The identity context for the runtime loop.
+        """
+        if context:
+            logger.info("Running service loop with identity context", user_id=context.user_id.get_secret_value())
+
         await self.start()
         try:
             # Sleep forever effectively, but allow cancellation
@@ -162,6 +170,47 @@ class ServiceAsync:
                 await anyio.to_thread.run_sync(self.flight_server.shutdown)
 
         logger.info("Services stopped.")
+
+    def ingest_signal(self, data: Dict[str, Any], context: UserContext) -> None:
+        """Ingest a signal/event with identity context.
+
+        Args:
+            data (Dict[str, Any]): The signal data.
+            context (UserContext): The user context.
+        """
+        if context is None:
+            raise ValueError("UserContext is required.")
+
+        logger.info("Ingesting signal", user_id=context.user_id.get_secret_value())
+
+        if self.reflex_engine:
+            try:
+                # Attempt to parse as LogEvent and process
+                event = LogEvent(**data)
+                self.reflex_engine.decide(event, context)
+            except Exception as e:
+                # Not a log event or validation failed, just log warning
+                logger.warning(f"Signal data not a valid LogEvent or processing failed: {e}")
+
+    def query_signals(self, query: str, top_k: int, context: UserContext) -> List[Any]:
+        """Query signals using RAG.
+
+        Args:
+            query (str): The query text.
+            top_k (int): Number of results.
+            context (UserContext): The user context.
+
+        Returns:
+            List[Any]: Query results.
+        """
+        if context is None:
+            raise ValueError("UserContext is required.")
+
+        logger.info("Querying signals", user_id=context.user_id.get_secret_value(), top_k=top_k)
+
+        if self.reflex_engine:
+            return self.reflex_engine._vector_store.query(query, k=top_k)
+        return []
 
 
 class Service:
@@ -218,11 +267,23 @@ class Service:
         """Start the services."""
         anyio.run(self._async_service.start)
 
-    def run_forever(self) -> None:
-        """Run the service forever (blocking)."""
+    def run_forever(self, context: Optional[UserContext] = None) -> None:
+        """Run the service forever (blocking).
+
+        Args:
+            context (Optional[UserContext]): The identity context.
+        """
         try:
-            anyio.run(self._async_service.run_forever)
+            anyio.run(self._async_service.run_forever, context)
         except KeyboardInterrupt:
             # anyio.run might re-raise KeyboardInterrupt or handle it.
             # We want to ensure graceful shutdown is triggered by __exit__ or here.
             pass
+
+    def ingest_signal(self, data: Dict[str, Any], context: UserContext) -> None:
+        """Ingest signal."""
+        self._async_service.ingest_signal(data, context)
+
+    def query_signals(self, query: str, top_k: int, context: UserContext) -> List[Any]:
+        """Query signals."""
+        return self._async_service.query_signals(query, top_k, context)
