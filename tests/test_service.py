@@ -222,10 +222,10 @@ def test_service_query_no_engine(mock_components: Dict[str, MagicMock], user_con
 def test_service_identity_validation() -> None:
     service = Service()
     with pytest.raises(ValueError, match="UserContext is required"):
-        service.ingest_signal({}, None)  # type: ignore
+        service.ingest_signal({}, None)  # type: ignore[arg-type]
 
     with pytest.raises(ValueError, match="UserContext is required"):
-        service.query_signals("q", 1, None)  # type: ignore
+        service.query_signals("q", 1, None)  # type: ignore[arg-type]
 
 
 def test_main_ingest(mock_components: Dict[str, MagicMock]) -> None:

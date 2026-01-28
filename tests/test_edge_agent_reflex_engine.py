@@ -9,7 +9,7 @@ from coreason_signal.edge_agent.reflex_engine import ReflexEngine
 from coreason_signal.schemas import AgentReflex, LogEvent, SOPDocument
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[misc]
 def mock_vector_store() -> MagicMock:
     return MagicMock()
 
@@ -49,7 +49,7 @@ def test_decide_missing_context(mock_vector_store: MagicMock) -> None:
     engine = ReflexEngine(vector_store=mock_vector_store)
     event = LogEvent(id="1", timestamp="", level="ERROR", source="t", message="m")
     with pytest.raises(ValueError, match="UserContext is required"):
-        engine.decide(event, None)  # type: ignore
+        engine.decide(event, None)  # type: ignore[arg-type]
     mock_vector_store.query.assert_not_called()
 
 

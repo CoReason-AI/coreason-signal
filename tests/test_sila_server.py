@@ -18,7 +18,7 @@ from coreason_signal.schemas import DeviceDefinition
 from coreason_signal.sila.server import SiLAGateway
 
 
-@pytest.fixture
+@pytest.fixture  # type: ignore[misc]
 def mock_device_def() -> DeviceDefinition:
     return DeviceDefinition(
         id="TestInstrument",
@@ -128,4 +128,4 @@ def test_sila_gateway_handle_request_validation(mock_device_def: DeviceDefinitio
     with patch("coreason_signal.sila.server.SilaServer"), patch("coreason_signal.sila.server.FeatureRegistry"):
         gateway = SiLAGateway(device_def=mock_device_def)
         with pytest.raises(ValueError, match="UserContext is required"):
-            gateway.handle_request({}, None)  # type: ignore
+            gateway.handle_request({}, None)  # type: ignore[arg-type]
