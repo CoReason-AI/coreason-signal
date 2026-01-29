@@ -1,8 +1,6 @@
 from typing import Any, Dict
 
 import pytest
-from pydantic import ValidationError
-
 from coreason_signal.schemas import (
     AgentReflex,
     DeviceDefinition,
@@ -12,6 +10,7 @@ from coreason_signal.schemas import (
     SOPDocument,
     TwinUpdate,
 )
+from pydantic import ValidationError
 
 
 def test_soft_sensor_constraints_edge_cases() -> None:
