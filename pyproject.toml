@@ -67,6 +67,7 @@ Documentation = "https://github.com/CoReason-AI/coreason_signal"
 [tool.ruff]
 line-length = 120
 target-version = "py312"
+src = ["src"]
 
 [tool.ruff.lint]
 select = ["E", "F", "B", "I"]
