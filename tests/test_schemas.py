@@ -1,9 +1,8 @@
 import datetime
 
 import pytest
-from pydantic import ValidationError
-
 from coreason_signal.schemas import AgentReflex, DeviceDefinition, LogEvent, SoftSensorModel
+from pydantic import ValidationError
 
 
 def test_device_definition_valid() -> None:

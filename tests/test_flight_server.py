@@ -16,11 +16,10 @@ from unittest.mock import MagicMock
 import pyarrow as pa
 import pyarrow.flight as flight
 import pytest
-
 from coreason_signal.streaming.flight_server import SignalFlightServer
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def flight_server() -> Generator[SignalFlightServer, None, None]:
     """
     Fixture to start and stop the Flight Server.
