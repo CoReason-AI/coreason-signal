@@ -119,7 +119,7 @@ async def update_constraints(constraints: Dict[str, float], request: Request) ->
 
 app: FastAPI = FastAPI(
     title="Coreason Signal Management API",
-    version="0.3.1",
+    version="0.4.0",
     lifespan=lifespan,
 )
 
