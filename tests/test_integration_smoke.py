@@ -114,6 +114,6 @@ def test_reactor_overheat_recovery_loop(
     # -------------------------------------------------------------------------
     assert reflex is not None, "Reflex Engine failed to produce a decision."
     # Check 1: Did we select the correct Action?
-    assert reflex.action == "ENGAGE_COOLING_LOOP", (
-        f"Incorrect action taken. Expected ENGAGE_COOLING_LOOP, got {reflex.action}"
-    )
+    assert (
+        reflex.action == "ENGAGE_COOLING_LOOP"
+    ), f"Incorrect action taken. Expected ENGAGE_COOLING_LOOP, got {reflex.action}"
