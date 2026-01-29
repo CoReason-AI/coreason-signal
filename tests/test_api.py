@@ -116,6 +116,13 @@ def test_latest_sensors_flight_server_missing(client: TestClient, mock_service: 
     assert response.status_code == 503
 
 
+def test_latest_sensors_service_not_initialized(client: TestClient) -> None:
+    """Test GET /sensors/latest when service is not initialized."""
+    app.state.service = None
+    response = client.get("/sensors/latest")
+    assert response.status_code == 503
+
+
 def test_trigger_reflex_endpoint(client: TestClient, mock_service: MagicMock) -> None:
     """Test POST /reflex/trigger endpoint."""
     payload = {"action": "TEST_ACTION", "parameters": {"speed": 100}, "reasoning": "Manual Trigger"}
