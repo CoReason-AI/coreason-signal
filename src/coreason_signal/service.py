@@ -25,8 +25,8 @@ from coreason_signal.config import settings
 from coreason_signal.edge_agent.reflex_engine import ReflexEngine
 from coreason_signal.edge_agent.vector_store import LocalVectorStore
 from coreason_signal.schemas import DeviceDefinition, LogEvent
-from coreason_signal.soft_sensor.engine import SoftSensorEngine
 from coreason_signal.sila.server import SiLAGateway
+from coreason_signal.soft_sensor.engine import SoftSensorEngine
 from coreason_signal.streaming.flight_server import SignalFlightServer
 from coreason_signal.utils.logger import logger
 
@@ -160,8 +160,9 @@ class ServiceAsync:
 
         # Note: We rely on the FastAPI lifespan to call self.setup() and self.start()
         # when the uvicorn server starts.
-        from coreason_signal.api import app
         import uvicorn
+
+        from coreason_signal.api import app
 
         app.state.service = self
 
