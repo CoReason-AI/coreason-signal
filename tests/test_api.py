@@ -101,6 +101,24 @@ def test_latest_sensors_endpoint(client: TestClient) -> None:
     assert data["batches"] == []
 
 
+def test_latest_sensors_with_data(client: TestClient, mock_service: MagicMock) -> None:
+    """Test GET /sensors/latest with data in buffer."""
+    batch_mock = MagicMock()
+    batch_mock.num_rows = 10
+    batch_mock.num_columns = 5
+    batch_mock.schema = "Schema<foo: int32>"
+    batch_mock.nbytes = 100
+
+    mock_service.flight_server.get_latest_data.return_value = [batch_mock]
+
+    response = client.get("/sensors/latest")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["buffered_batches_count"] == 1
+    assert data["batches"][0]["num_rows"] == 10
+    assert data["batches"][0]["schema"] == "Schema<foo: int32>"
+
+
 def test_latest_sensors_endpoint_error(client: TestClient, mock_service: MagicMock) -> None:
     """Test GET /sensors/latest handles exceptions."""
     mock_service.flight_server.get_latest_data.side_effect = RuntimeError("Flight Error")
