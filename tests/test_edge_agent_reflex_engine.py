@@ -4,6 +4,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from coreason_identity.models import UserContext
+
 from coreason_signal.edge_agent.reflex_engine import ReflexEngine
 from coreason_signal.schemas import AgentReflex, LogEvent, SOPDocument
 
@@ -41,6 +42,25 @@ def test_decide_ignores_non_error(mock_vector_store: MagicMock, user_context: Us
     )
     reflex = engine.decide(event, user_context)
     assert reflex is None
+
+
+def test_reflex_trigger_execution(mock_vector_store: MagicMock) -> None:
+    """Test manual trigger execution."""
+    engine = ReflexEngine(vector_store=mock_vector_store)
+    reflex = AgentReflex(action="TEST", parameters={"p": 1}, reasoning="test")
+
+    with patch.object(engine, "_execute_reflex_logic") as mock_exec:
+        engine.trigger(reflex)
+        engine._executor.shutdown(wait=True)
+        mock_exec.assert_called_once_with(reflex)
+
+
+def test_reflex_execution_logic(mock_vector_store: MagicMock) -> None:
+    """Test the internal execution logic (logging)."""
+    engine = ReflexEngine(vector_store=mock_vector_store)
+    reflex = AgentReflex(action="TEST", parameters={"p": 1}, reasoning="test")
+    # This just ensures it doesn't crash
+    engine._execute_reflex_logic(reflex)
 
 
 def test_decide_missing_context(mock_vector_store: MagicMock) -> None:

@@ -147,3 +147,13 @@ class SoftSensorEngine:
             logger.info(f"Constraint active: Clipped {value} to max {self._constraints['max']}")
             return self._constraints["max"]
         return value
+
+    def update_constraints(self, new_constraints: Dict[str, float]) -> None:
+        """Update the physics constraints at runtime.
+
+        Args:
+            new_constraints (Dict[str, float]): New constraints to apply.
+        """
+        logger.info(f"Updating physics constraints for {self.config.id}: {new_constraints}")
+        self.config.physics_constraints = new_constraints
+        self._constraints = self._parse_constraints()

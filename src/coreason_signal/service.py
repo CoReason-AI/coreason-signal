@@ -26,6 +26,7 @@ from coreason_signal.edge_agent.reflex_engine import ReflexEngine
 from coreason_signal.edge_agent.vector_store import LocalVectorStore
 from coreason_signal.schemas import DeviceDefinition, LogEvent
 from coreason_signal.sila.server import SiLAGateway
+from coreason_signal.soft_sensor.engine import SoftSensorEngine
 from coreason_signal.streaming.flight_server import SignalFlightServer
 from coreason_signal.utils.logger import logger
 
@@ -49,6 +50,7 @@ class ServiceAsync:
         self.gateway: Optional[SiLAGateway] = None
         self.flight_server: Optional[SignalFlightServer] = None
         self.reflex_engine: Optional[ReflexEngine] = None
+        self.soft_sensor_engine: Optional[SoftSensorEngine] = None
 
         # Threads for legacy blocking servers
         self._gateway_thread: Optional[threading.Thread] = None
@@ -73,6 +75,10 @@ class ServiceAsync:
 
     async def setup(self) -> None:
         """Initialize all components of the application asynchronously."""
+        if self.gateway:
+            logger.debug("Service already initialized.")
+            return
+
         logger.info("Initializing Coreason Signal (Async)...")
 
         # 1. Initialize RAG / Vector Store
@@ -107,6 +113,11 @@ class ServiceAsync:
         # 5. Initialize Arrow Flight Server
         self.flight_server = SignalFlightServer(port=settings.ARROW_FLIGHT_PORT)
 
+        # 6. Initialize Soft Sensor Engine
+        # TODO: Load from configuration or model registry.
+        if not self.soft_sensor_engine:
+            logger.info("Soft Sensor Engine not configured. Initialization skipped.")
+
         logger.info("Initialization complete.")
 
     async def start(self) -> None:
@@ -115,6 +126,10 @@ class ServiceAsync:
         Since SiLA and FlightServer are blocking servers, we run them in separate threads
         managed by this async service.
         """
+        if self._gateway_thread and self._gateway_thread.is_alive():
+            logger.debug("Service already started.")
+            return
+
         if not self.gateway or not self.flight_server:
             raise RuntimeError("Service not initialized. Call setup() first.")
 
@@ -143,11 +158,25 @@ class ServiceAsync:
         if context:
             logger.info("Running service loop with identity context", user_id=context.user_id.get_secret_value())
 
-        await self.start()
+        # Note: We rely on the FastAPI lifespan to call self.setup() and self.start()
+        # when the uvicorn server starts.
+        import uvicorn
+
+        from coreason_signal.api import app
+
+        app.state.service = self
+
+        config = uvicorn.Config(
+            app,
+            host="0.0.0.0",
+            port=8000,
+            log_level=settings.LOG_LEVEL.lower(),
+        )
+        server = uvicorn.Server(config)
+
+        logger.info("Starting Management API (FastAPI + Uvicorn)...")
         try:
-            # Sleep forever effectively, but allow cancellation
-            while not self._shutdown_event.is_set():
-                await anyio.sleep(1.0)
+            await server.serve()
         except anyio.get_cancelled_exc_class():
             logger.info("Service cancelled.")
             raise

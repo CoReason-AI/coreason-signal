@@ -26,6 +26,8 @@ repos:
           - types-aiofiles
           - lancedb
           - anyio
+          - fastapi>=0.115.0
+          - uvicorn>=0.30.0
   - repo: https://github.com/AleksaC/hadolint-py
     rev: v2.14.0
     hooks:

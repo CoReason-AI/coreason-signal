@@ -12,6 +12,7 @@ from typing import Optional
 from unittest.mock import MagicMock
 
 import pytest
+
 from coreason_signal.schemas import SemanticFact, TwinUpdate
 from coreason_signal.twin.syncer import TwinSyncer
 

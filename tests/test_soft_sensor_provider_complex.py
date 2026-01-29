@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from coreason_signal.schemas import SoftSensorModel
 from coreason_signal.soft_sensor.engine import SoftSensorEngine
 
