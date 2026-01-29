@@ -14,7 +14,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from coreason_signal.api import app
+from coreason_signal.api import app, lifespan
 from coreason_signal.schemas import DeviceDefinition
 
 
@@ -78,6 +78,20 @@ def test_status_endpoint_not_initialized(client: TestClient) -> None:
     assert response.status_code == 503
 
 
+def test_status_endpoint_gateway_not_ready(client: TestClient, mock_service: MagicMock) -> None:
+    """Test GET /status when gateway is not ready."""
+    # Gateway is None
+    mock_service.gateway = None
+    response = client.get("/status")
+    assert response.status_code == 503
+
+    # Gateway def is None
+    mock_service.gateway = MagicMock()
+    mock_service.gateway.device_def = None
+    response = client.get("/status")
+    assert response.status_code == 503
+
+
 def test_latest_sensors_endpoint(client: TestClient) -> None:
     """Test GET /sensors/latest endpoint."""
     response = client.get("/sensors/latest")
@@ -93,6 +107,13 @@ def test_latest_sensors_endpoint_error(client: TestClient, mock_service: MagicMo
     response = client.get("/sensors/latest")
     assert response.status_code == 500
     assert "Flight Error" in response.json()["detail"]
+
+
+def test_latest_sensors_flight_server_missing(client: TestClient, mock_service: MagicMock) -> None:
+    """Test GET /sensors/latest when flight server is missing."""
+    mock_service.flight_server = None
+    response = client.get("/sensors/latest")
+    assert response.status_code == 503
 
 
 def test_trigger_reflex_endpoint(client: TestClient, mock_service: MagicMock) -> None:
@@ -136,3 +157,23 @@ def test_update_constraints_error(client: TestClient, mock_service: MagicMock) -
     response = client.put("/soft-sensor/constraints", json=constraints)
     assert response.status_code == 400
     assert "Invalid Constraint" in response.json()["detail"]
+
+
+def test_update_constraints_service_not_initialized(client: TestClient) -> None:
+    """Test PUT /soft-sensor/constraints when service is None."""
+    app.state.service = None
+    constraints = {"min_temp": 10.0}
+    response = client.put("/soft-sensor/constraints", json=constraints)
+    assert response.status_code == 503
+
+
+@pytest.mark.asyncio
+async def test_lifespan_no_service() -> None:
+    """Test lifespan startup when service is missing in state."""
+    mock_app = MagicMock(spec=app)
+    mock_app.state.service = None
+
+    # Test that it yields without crashing and logs error
+    async with lifespan(mock_app):
+        pass
+    # No assertion needed other than it didn't raise
