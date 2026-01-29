@@ -40,7 +40,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await service.shutdown()
 
 
-app = FastAPI(
+app: FastAPI = FastAPI(
     title="Coreason Signal Management API",
     version="0.3.1",
     lifespan=lifespan,
