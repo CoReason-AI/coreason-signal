@@ -2,7 +2,6 @@ import datetime
 from unittest.mock import MagicMock
 
 import pytest
-
 from coreason_signal.edge_agent.reflex_engine import ReflexEngine
 from coreason_signal.schemas import LogEvent, SOPDocument
 

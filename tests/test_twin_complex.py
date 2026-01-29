@@ -12,7 +12,6 @@ import math
 from unittest.mock import MagicMock
 
 import pytest
-
 from coreason_signal.schemas import TwinUpdate
 from coreason_signal.twin.syncer import TwinSyncer
 
