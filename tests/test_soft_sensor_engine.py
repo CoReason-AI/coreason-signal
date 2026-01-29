@@ -9,7 +9,7 @@ from coreason_signal.soft_sensor.engine import SoftSensorEngine
 
 
 # Sample config for testing
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def sample_model_config() -> SoftSensorModel:
     return SoftSensorModel(
         id="test_model",
@@ -20,7 +20,7 @@ def sample_model_config() -> SoftSensorModel:
     )
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def mock_ort_session() -> Generator[Tuple[MagicMock, MagicMock], None, None]:
     with patch("coreason_signal.soft_sensor.engine.ort.InferenceSession") as mock_cls:
         session_instance = MagicMock()

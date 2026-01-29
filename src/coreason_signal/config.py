@@ -13,7 +13,7 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-class Settings(BaseSettings):  # type: ignore[misc]
+class Settings(BaseSettings):
     """Centralized configuration for the Coreason Signal application.
 
     Reads configuration from environment variables prefixed with 'SIGNAL_'.

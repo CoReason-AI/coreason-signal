@@ -14,7 +14,7 @@ from sila2.framework import Feature
 from sila2.server import FeatureImplementationBase, SilaServer
 
 
-class GenericFeatureImplementation(FeatureImplementationBase):  # type: ignore[misc]
+class GenericFeatureImplementation(FeatureImplementationBase):
     """A generic implementation for dynamically loaded SiLA features.
 
     Used when a specific implementation is not provided for a capability.

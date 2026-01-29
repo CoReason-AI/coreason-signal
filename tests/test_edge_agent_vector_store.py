@@ -10,7 +10,7 @@ from coreason_signal.edge_agent.vector_store import LocalVectorStore
 from coreason_signal.schemas import SOPDocument
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def mock_embedding_model() -> Generator[MagicMock, None, None]:
     with patch("coreason_signal.edge_agent.vector_store.TextEmbedding") as MockTextEmbedding:
         mock_instance = MockTextEmbedding.return_value
@@ -24,7 +24,7 @@ def mock_embedding_model() -> Generator[MagicMock, None, None]:
         yield mock_instance
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def test_db_path() -> Generator[str, None, None]:
     """Create a temp directory for the database."""
     tmp_dir = tempfile.mkdtemp()

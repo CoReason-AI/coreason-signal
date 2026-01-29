@@ -20,7 +20,7 @@ from coreason_signal.main import _shutdown_handler, main
 from coreason_signal.service import Service, ServiceAsync
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def mock_components() -> Generator[Dict[str, MagicMock], None, None]:
     """Mock all heavy external components and yield them."""
     with (
@@ -38,7 +38,7 @@ def mock_components() -> Generator[Dict[str, MagicMock], None, None]:
         yield {"gateway": mock_gateway, "flight": mock_flight}
 
 
-@pytest.mark.asyncio  # type: ignore[misc]
+@pytest.mark.asyncio
 async def test_service_async_setup(mock_components: Dict[str, MagicMock]) -> None:
     """Test ServiceAsync setup."""
     service = ServiceAsync()
@@ -49,7 +49,7 @@ async def test_service_async_setup(mock_components: Dict[str, MagicMock]) -> Non
     assert service.flight_server is not None
 
 
-@pytest.mark.asyncio  # type: ignore[misc]
+@pytest.mark.asyncio
 async def test_service_async_lifecycle(mock_components: Dict[str, MagicMock]) -> None:
     """Test ServiceAsync context manager lifecycle."""
     async with ServiceAsync() as service:
@@ -70,7 +70,7 @@ async def test_service_async_lifecycle(mock_components: Dict[str, MagicMock]) ->
     mock_components["flight"].return_value.shutdown.assert_called()
 
 
-@pytest.mark.asyncio  # type: ignore[misc]
+@pytest.mark.asyncio
 async def test_service_async_run_forever_cancellation(mock_components: Dict[str, MagicMock]) -> None:
     """Test ServiceAsync run_forever cancellation."""
     service = ServiceAsync()
@@ -86,7 +86,7 @@ async def test_service_async_run_forever_cancellation(mock_components: Dict[str,
     mock_components["gateway"].return_value.stop.assert_called()
 
 
-@pytest.mark.asyncio  # type: ignore[misc]
+@pytest.mark.asyncio
 async def test_service_async_run_forever_context(
     mock_components: Dict[str, MagicMock],
     user_context: UserContext,
@@ -137,7 +137,7 @@ def test_service_sync_run_forever(mock_components: Dict[str, MagicMock], user_co
         mock_run.assert_called_with(user_context)
 
 
-@pytest.mark.asyncio  # type: ignore[misc]
+@pytest.mark.asyncio
 async def test_service_uninitialized_error() -> None:
     """Test that starting without setup raises RuntimeError."""
     service = ServiceAsync()

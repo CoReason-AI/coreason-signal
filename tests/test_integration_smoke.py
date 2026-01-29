@@ -12,7 +12,7 @@ from coreason_signal.schemas import AgentReflex, LogEvent, SoftSensorModel, SOPD
 from coreason_signal.soft_sensor.engine import SoftSensorEngine
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def mock_embedding_model() -> Generator[MagicMock, None, None]:
     with patch("coreason_signal.edge_agent.vector_store.TextEmbedding") as mock:
         instance = mock.return_value
@@ -21,7 +21,7 @@ def mock_embedding_model() -> Generator[MagicMock, None, None]:
         yield instance
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def mock_onnx_session() -> Generator[MagicMock, None, None]:
     with patch("coreason_signal.soft_sensor.engine.ort.InferenceSession") as mock:
         instance = mock.return_value

@@ -6,7 +6,7 @@ from coreason_signal.schemas import SoftSensorModel
 from coreason_signal.soft_sensor.engine import SoftSensorEngine
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def mock_model_config() -> SoftSensorModel:
     return SoftSensorModel(
         id="test-sensor",

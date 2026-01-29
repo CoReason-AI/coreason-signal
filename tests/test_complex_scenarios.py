@@ -7,7 +7,7 @@ from coreason_signal.edge_agent.reflex_engine import ReflexEngine
 from coreason_signal.schemas import LogEvent, SOPDocument
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def mock_vector_store() -> MagicMock:
     return MagicMock()
 

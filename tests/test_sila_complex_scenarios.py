@@ -17,7 +17,7 @@ from coreason_signal.schemas import DeviceDefinition
 from coreason_signal.sila.server import SiLAGateway
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def base_device_def() -> DeviceDefinition:
     return DeviceDefinition(
         id="TestInstrument",

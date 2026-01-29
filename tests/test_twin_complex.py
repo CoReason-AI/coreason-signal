@@ -22,12 +22,12 @@ class MockConnector:
         pass
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def mock_connector() -> MagicMock:
     return MagicMock(spec=MockConnector)
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def twin_syncer(mock_connector: MagicMock) -> TwinSyncer:
     return TwinSyncer(connector=mock_connector, default_sigma_threshold=0.1)
 
