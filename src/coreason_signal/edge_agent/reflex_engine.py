@@ -127,3 +127,21 @@ class ReflexEngine:
             # Catch submission errors (e.g., executor shutdown)
             logger.exception(f"Reflex Engine submission failed: {e}")
             return None
+
+    def trigger(self, reflex: AgentReflex) -> None:
+        """Manually trigger a reflex action.
+
+        Args:
+            reflex (AgentReflex): The reflex to trigger.
+        """
+        logger.info(f"Triggering reflex: {reflex.action} with parameters {reflex.parameters}")
+        self._executor.submit(self._execute_reflex_logic, reflex)
+
+    def _execute_reflex_logic(self, reflex: AgentReflex) -> None:
+        """Internal logic to execute the reflex action.
+
+        In a real system, this would interface with the Hardware Abstraction Layer (HAL)
+        or the SiLAGateway to perform the action.
+        """
+        logger.info(f"EXECUTING REFLEX ACTION: {reflex.action}")
+        # Placeholder for actual instrument control logic

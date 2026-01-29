@@ -16,6 +16,7 @@
 - **Protocol Polyglot:** Natively supports **SiLA 2** (Standard in Lab Automation) while wrapping legacy serial and analog instruments (via Computer Vision) into clean microservices.
 - **Live Digital Twin:** Syncs physical state to the CoReason Knowledge Graph with sub-second latency using delta updates.
 - **High-Throughput Streaming:** Leverages **Apache Arrow Flight** for efficient transmission of high-frequency waveform data.
+- **Management Control Plane:** A RESTful API (FastAPI) for remote status monitoring, soft sensor configuration, and manual reflex triggering.
 
 For detailed requirements and architecture, see [Product Requirements](docs/product_requirements.md).
 
@@ -27,33 +28,15 @@ pip install coreason-signal
 
 ## Usage
 
+**See the full [Usage Guide](docs/usage.md) for details on the REST API and CLI.**
+
 To start the Edge Intelligence Gateway:
 
-```python
-from coreason_signal.main import Application
-import signal
-
-# Initialize the application
-app = Application()
-
-# Register signal handlers for graceful shutdown
-signal.signal(signal.SIGINT, app.shutdown)
-signal.signal(signal.SIGTERM, app.shutdown)
-
-# Setup and run
-try:
-    app.setup()
-    app.run()
-except Exception as e:
-    print(f"Fatal error: {e}")
-    app.shutdown()
-```
-
-Or via the command line interface (CLI):
-
 ```bash
-poetry run start
+poetry run start serve
 ```
+
+This launches the service, including the SiLA 2 Server, Arrow Flight Stream, and the **Management API** on port `8000`.
 
 ## License
 
