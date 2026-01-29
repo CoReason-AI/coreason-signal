@@ -15,6 +15,7 @@ from unittest.mock import MagicMock, patch
 import anyio
 import pytest
 from coreason_identity.models import UserContext
+
 from coreason_signal.main import _shutdown_handler, main
 from coreason_signal.service import Service, ServiceAsync
 

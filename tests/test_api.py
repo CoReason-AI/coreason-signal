@@ -8,15 +8,14 @@
 #
 # Source Code: https://github.com/CoReason-AI/coreason_signal
 
-from typing import Generator, AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock, patch
+from typing import Generator
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
 
 from coreason_signal.api import app
 from coreason_signal.schemas import DeviceDefinition
-from coreason_signal.service import ServiceAsync
 
 
 @pytest.fixture
@@ -98,11 +97,7 @@ def test_latest_sensors_endpoint_error(client: TestClient, mock_service: MagicMo
 
 def test_trigger_reflex_endpoint(client: TestClient, mock_service: MagicMock) -> None:
     """Test POST /reflex/trigger endpoint."""
-    payload = {
-        "action": "TEST_ACTION",
-        "parameters": {"speed": 100},
-        "reasoning": "Manual Trigger"
-    }
+    payload = {"action": "TEST_ACTION", "parameters": {"speed": 100}, "reasoning": "Manual Trigger"}
     response = client.post("/reflex/trigger", json=payload)
     assert response.status_code == 200
     assert response.json()["status"] == "triggered"
@@ -112,11 +107,7 @@ def test_trigger_reflex_endpoint(client: TestClient, mock_service: MagicMock) ->
 def test_trigger_reflex_not_available(client: TestClient, mock_service: MagicMock) -> None:
     """Test POST /reflex/trigger when engine is missing."""
     mock_service.reflex_engine = None
-    payload = {
-        "action": "TEST",
-        "parameters": {},
-        "reasoning": "test"
-    }
+    payload = {"action": "TEST", "parameters": {}, "reasoning": "test"}
     response = client.post("/reflex/trigger", json=payload)
     assert response.status_code == 503
 
