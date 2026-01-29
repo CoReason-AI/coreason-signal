@@ -12,13 +12,12 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from coreason_identity.models import UserContext
-from pydantic import HttpUrl
-
 from coreason_signal.schemas import DeviceDefinition
 from coreason_signal.sila.server import SiLAGateway
+from pydantic import HttpUrl
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def mock_device_def() -> DeviceDefinition:
     return DeviceDefinition(
         id="TestInstrument",

@@ -12,7 +12,6 @@ import math
 from unittest.mock import MagicMock
 
 import pytest
-
 from coreason_signal.schemas import TwinUpdate
 from coreason_signal.twin.syncer import TwinSyncer
 
@@ -22,12 +21,12 @@ class MockConnector:
         pass
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def mock_connector() -> MagicMock:
     return MagicMock(spec=MockConnector)
 
 
-@pytest.fixture  # type: ignore[misc]
+@pytest.fixture
 def twin_syncer(mock_connector: MagicMock) -> TwinSyncer:
     return TwinSyncer(connector=mock_connector, default_sigma_threshold=0.1)
 
