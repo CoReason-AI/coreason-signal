@@ -11,7 +11,7 @@
 from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any, AsyncIterator, Dict, cast
 
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, FastAPI, HTTPException, Request
 
 from coreason_signal.schemas import AgentReflex
 from coreason_signal.utils.logger import logger
@@ -40,17 +40,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await service.shutdown()
 
 
-app: FastAPI = FastAPI(
-    title="Coreason Signal Management API",
-    version="0.3.1",
-    lifespan=lifespan,
-)
+router = APIRouter()
 
 
-@app.get("/status")
-async def get_status() -> Dict[str, Any]:
+@router.get("/status")
+async def get_status(request: Request) -> Dict[str, Any]:
     """Return the current state of the gateway."""
-    service = cast("ServiceAsync | None", getattr(app.state, "service", None))
+    service = cast("ServiceAsync | None", getattr(request.app.state, "service", None))
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
@@ -66,10 +62,10 @@ async def get_status() -> Dict[str, Any]:
     }
 
 
-@app.get("/sensors/latest")
-async def get_latest_sensors() -> Dict[str, Any]:
+@router.get("/sensors/latest")
+async def get_latest_sensors(request: Request) -> Dict[str, Any]:
     """Return a summary of the buffered record batches."""
-    service = cast("ServiceAsync | None", getattr(app.state, "service", None))
+    service = cast("ServiceAsync | None", getattr(request.app.state, "service", None))
     if not service or not service.flight_server:
         raise HTTPException(status_code=503, detail="Flight server not available")
 
@@ -91,10 +87,10 @@ async def get_latest_sensors() -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail=str(e)) from e
 
 
-@app.post("/reflex/trigger")
-async def trigger_reflex(reflex: AgentReflex) -> Dict[str, Any]:
+@router.post("/reflex/trigger")
+async def trigger_reflex(reflex: AgentReflex, request: Request) -> Dict[str, Any]:
     """Manually trigger a reflex action."""
-    service = cast("ServiceAsync | None", getattr(app.state, "service", None))
+    service = cast("ServiceAsync | None", getattr(request.app.state, "service", None))
     if not service or not service.reflex_engine:
         raise HTTPException(status_code=503, detail="Reflex engine not available")
 
@@ -102,10 +98,10 @@ async def trigger_reflex(reflex: AgentReflex) -> Dict[str, Any]:
     return {"status": "triggered", "reflex": reflex}
 
 
-@app.put("/soft-sensor/constraints")
-async def update_constraints(constraints: Dict[str, float]) -> Dict[str, Any]:
+@router.put("/soft-sensor/constraints")
+async def update_constraints(constraints: Dict[str, float], request: Request) -> Dict[str, Any]:
     """Update the SoftSensorEngine configuration at runtime."""
-    service = cast("ServiceAsync | None", getattr(app.state, "service", None))
+    service = cast("ServiceAsync | None", getattr(request.app.state, "service", None))
     if not service:
         raise HTTPException(status_code=503, detail="Service not initialized")
 
@@ -119,3 +115,12 @@ async def update_constraints(constraints: Dict[str, float]) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Failed to update constraints: {e}")
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+app: FastAPI = FastAPI(
+    title="Coreason Signal Management API",
+    version="0.3.1",
+    lifespan=lifespan,
+)
+
+app.include_router(router)
