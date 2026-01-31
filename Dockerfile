@@ -30,11 +30,9 @@ WORKDIR /home/appuser/app
 # Copy the wheel from the builder stage
 COPY --from=builder /wheels /wheels
 
-# Install the application wheel
-RUN pip install --no-cache-dir /wheels/*.whl
-
-# Ensure appuser owns the entire application directory including logs
-RUN chown -R appuser:appuser /home/appuser/app
+# Install the application wheel and ensure appuser owns the entire application directory including logs
+RUN pip install --no-cache-dir /wheels/*.whl && \
+    chown -R appuser:appuser /home/appuser/app
 
 # Switch to non-root user
 USER appuser
@@ -45,4 +43,3 @@ ENV PATH="/home/appuser/.local/bin:${PATH}"
 # Execution
 EXPOSE 8000 50052 50055
 CMD ["start", "serve"]
-
