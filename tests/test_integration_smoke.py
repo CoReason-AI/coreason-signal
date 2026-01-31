@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
+
 from coreason_signal.edge_agent.reflex_engine import ReflexEngine
 from coreason_signal.edge_agent.vector_store import LocalVectorStore
 from coreason_signal.schemas import AgentReflex, LogEvent, SoftSensorModel, SOPDocument
